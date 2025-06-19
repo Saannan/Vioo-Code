@@ -1,53 +1,48 @@
-import { 
-    onAuthStateChanged, 
-    createUserWithEmailAndPassword, 
-    signInWithEmailAndPassword, 
-    signOut,
-    updateProfile
+import {
+    onAuthStateChanged,
+    createUserWithEmailAndPassword,
+    signInWithEmailAndPassword,
+    signOut
 } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-auth.js";
 import { auth, db } from './firebase-init.js';
 import { doc, getDoc, getDocs, setDoc, serverTimestamp, query, collection, where } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
 
-let currentUserCache = null;
+let currentUser = null;
+let authReadyResolver;
+export const authReady = new Promise(resolve => {
+    authReadyResolver = resolve;
+});
 
-const updateUserUI = (user, userData) => {
-    document.body.classList.add('auth-state-known');
+const updateUI = async (user) => {
+    const signedInElements = document.querySelectorAll('.when-signed-in');
+    const signedOutElements = document.querySelectorAll('.when-signed-out');
+    
     if (user) {
-        document.body.classList.add('signed-in');
-        document.body.classList.remove('signed-out');
+        const userDocRef = doc(db, "users", user.uid);
+        const userDocSnap = await getDoc(userDocRef);
+        currentUser = { uid: user.uid, email: user.email, ...userDocSnap.data() };
+
+        signedInElements.forEach(el => el.style.display = 'flex');
+        signedOutElements.forEach(el => el.style.display = 'none');
         
-        const avatarElements = document.querySelectorAll('.user-avatar-img');
-        const usernameElements = document.querySelectorAll('.user-username-text');
-        
-        avatarElements.forEach(el => el.src = userData.avatarUrl);
-        usernameElements.forEach(el => el.textContent = userData.username);
+        document.querySelectorAll('.user-avatar').forEach(el => el.src = currentUser.avatarUrl);
+        document.querySelectorAll('.user-username').forEach(el => el.textContent = currentUser.username);
+        document.querySelectorAll('.user-email').forEach(el => el.textContent = currentUser.email);
 
     } else {
-        document.body.classList.add('signed-out');
-        document.body.classList.remove('signed-in');
+        currentUser = null;
+        signedInElements.forEach(el => el.style.display = 'none');
+        signedOutElements.forEach(el => el.style.display = 'flex');
     }
 };
 
-onAuthStateChanged(auth, async (user) => {
-    if (user) {
-        if (currentUserCache && currentUserCache.uid === user.uid) {
-            updateUserUI(user, currentUserCache);
-        } else {
-            const userDocRef = doc(db, "users", user.uid);
-            const userDocSnap = await getDoc(userDocRef);
-            if (userDocSnap.exists()) {
-                currentUserCache = { uid: user.uid, email: user.email, ...userDocSnap.data() };
-                updateUserUI(user, currentUserCache);
-            }
-        }
-    } else {
-        currentUserCache = null;
-        updateUserUI(null, null);
-    }
+onAuthStateChanged(auth, (user) => {
+    updateUI(user);
+    authReadyResolver();
 });
 
 export const getCurrentUser = () => {
-    return currentUserCache;
+    return currentUser;
 };
 
 export const handleSignUp = async (username, email, password) => {
@@ -61,20 +56,15 @@ export const handleSignUp = async (username, email, password) => {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     const user = userCredential.user;
 
-    await updateProfile(user, { displayName: username });
-
-    const newUserProfile = {
+    await setDoc(doc(db, "users", user.uid), {
         uid: user.uid,
         username: username,
         username_lowercase: username.toLowerCase(),
         email: email,
-        avatarUrl: `https://api.dicebear.com/8.x/initials/svg?seed=${encodeURIComponent(username)}`,
+        avatarUrl: `https://api.dicebear.com/8.x/initials/svg?seed=${username}`,
         about: "Hello, I'm a new Vioo-Code user!",
         createdAt: serverTimestamp()
-    };
-    
-    await setDoc(doc(db, "users", user.uid), newUserProfile);
-    currentUserCache = newUserProfile;
+    });
     return user;
 };
 

@@ -1,36 +1,32 @@
 import { db, rtdb, supabase, auth } from './firebase-init.js';
-import { 
-    collection, 
-    addDoc, 
-    getDoc, 
-    getDocs, 
-    doc, 
-    query, 
-    where, 
-    orderBy, 
-    limit, 
+import {
+    collection,
+    addDoc,
+    getDoc,
+    getDocs,
+    doc,
+    query,
+    where,
+    orderBy,
+    limit,
     serverTimestamp,
-    setDoc,
-    deleteDoc 
+    deleteDoc,
+    setDoc
 } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
 import { ref as dbRef, push, set, onValue, serverTimestamp as rtdbServerTimestamp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-database.js";
 import { supabaseConfig } from './config.js';
+import { getCurrentUser } from './auth.js';
 
 export const createPaste = async (pasteData) => {
-    if (!auth.currentUser) throw new Error("User not authenticated.");
-
-    const userDocRef = doc(db, "users", auth.currentUser.uid);
-    const userDoc = await getDoc(userDocRef);
-    if (!userDoc.exists()) throw new Error("User profile not found.");
-    const userData = userDoc.data();
-
-    const token = await auth.currentUser.getIdToken();
-    supabase.auth.setAuth(token);
+    const user = getCurrentUser();
+    if (!user) {
+        throw new Error("Authentication error. Please sign in again.");
+    }
     
     const pasteId = doc(collection(db, 'pastes')).id;
-    const storagePath = `${auth.currentUser.uid}/${pasteId}.txt`;
+    const storagePath = `${user.uid}/${pasteId}.txt`;
 
-    const { data: uploadData, error: uploadError } = await supabase.storage
+    const { data, error: uploadError } = await supabase.storage
         .from(supabaseConfig.bucket)
         .upload(storagePath, pasteData.content);
 
@@ -43,9 +39,9 @@ export const createPaste = async (pasteData) => {
         title: pasteData.title,
         language: pasteData.language,
         visibility: pasteData.visibility,
-        authorUid: auth.currentUser.uid,
-        authorUsername: userData.username,
-        authorAvatarUrl: userData.avatarUrl,
+        authorUid: user.uid,
+        authorUsername: user.username,
+        authorAvatarUrl: user.avatarUrl,
         storagePath: storagePath,
         stats: { views: 0, comments: 0 },
         createdAt: serverTimestamp()
@@ -101,7 +97,7 @@ export const getPastesByUsername = async (username) => {
     const userSnapshot = await getDocs(userQuery);
 
     if (userSnapshot.empty) {
-        throw new Error("User not found.");
+        return { user: null, pastes: [] };
     }
     
     const user = userSnapshot.docs[0].data();
@@ -119,7 +115,11 @@ export const getPastesByUsername = async (username) => {
     return { user, pastes };
 };
 
-export const postComment = async (pasteId, text, author) => {
+
+export const postComment = async (pasteId, text) => {
+    const author = getCurrentUser();
+    if (!author) throw new Error("Authentication required to comment.");
+    
     const commentRef = dbRef(rtdb, `comments/${pasteId}`);
     const newCommentRef = push(commentRef);
     await set(newCommentRef, {
