@@ -5,7 +5,7 @@ import {
   signOut 
 } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-auth.js";
 import { auth, db } from './firebase-init.js';
-import { doc, getDoc, setDoc, serverTimestamp, query, collection, where } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
+import { doc, getDocs, getDoc, setDoc, serverTimestamp, query, collection, where } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
 
 let currentUser = null;
 
@@ -43,7 +43,7 @@ export const getCurrentUser = () => {
 export const handleSignUp = async (username, email, password) => {
     const usersRef = collection(db, "users");
     const q = query(usersRef, where("username_lowercase", "==", username.toLowerCase()));
-    const querySnapshot = await getDoc(q);
+    const querySnapshot = await getDocs(q);
     if (!querySnapshot.empty) {
         throw new Error("Username already exists.");
     }
