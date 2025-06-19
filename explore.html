@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Explore Pastes - Vioo-Code</title>
+    <link rel="stylesheet" href="css/style.css">
+     <link rel="icon" href="https://api.dicebear.com/8.x/initials/svg?seed=VC&backgroundColor=1a1a2e,ffc300" type="image/svg+xml">
+</head>
+<body>
+    <header>
+        <a href="/" class="logo">Vioo<span>-Code</span></a>
+        <nav>
+            <ul class="main-nav">
+                <li><a href="/explore.html">Explore</a></li>
+                <li class="when-signed-in" style="display: none;"><a href="/new-paste.html">New Paste</a></li>
+            </ul>
+        </nav>
+        <nav>
+            <ul class="auth-nav">
+                <li class="when-signed-out"><a href="/sign-in.html" class="btn btn-secondary">Sign In</a></li>
+                <li class="when-signed-out"><a href="/sign-up.html" class="btn btn-primary">Sign Up</a></li>
+                <li class="when-signed-in" style="display: none;">
+                    <a id="nav-profile-link" href="#" class="user-info">
+                        <img src="" alt="User Avatar" class="user-avatar">
+                        <span class="user-username"></span>
+                    </a>
+                </li>
+                <li class="when-signed-in" style="display: none;">
+                     <button id="sign-out-btn" class="btn btn-secondary">Logout</button>
+                </li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        <div class="container">
+            <h1>Explore All Public Pastes</h1>
+            <div id="explore-pastes-grid" class="paste-grid">
+                <p>Loading pastes...</p>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <p>&copy; 2025 Vioo-Code. A Modern Platform for Developers.</p>
+    </footer>
+
+    <script type="module">
+        import { handleSignOut } from './config/auth.js';
+        import { getAllPublicPastes } from './config/api.js';
+
+        const signOutBtn = document.getElementById('sign-out-btn');
+        signOutBtn.addEventListener('click', handleSignOut);
+
+        const pastesGrid = document.getElementById('explore-pastes-grid');
+
+        async function loadAllPublicPastes() {
+            try {
+                const pastes = await getAllPublicPastes();
+                if (pastes.length === 0) {
+                    pastesGrid.innerHTML = '<p>No public pastes available to explore.</p>';
+                    return;
+                }
+                
+                pastesGrid.innerHTML = pastes.map(paste => `
+                    <div class="paste-card">
+                        <h3><a href="/view-paste.html?id=${paste.pasteId}">${paste.title}</a></h3>
+                        <div class="paste-meta">
+                            <img src="${paste.authorAvatarUrl}" alt="${paste.authorUsername}'s avatar">
+                            <a href="/profile.html?username=${paste.authorUsername}">${paste.authorUsername}</a>
+                            <span class="language-badge">${paste.language}</span>
+                        </div>
+                    </div>
+                `).join('');
+
+            } catch (error) {
+                console.error("Error loading pastes:", error);
+                pastesGrid.innerHTML = '<p>Could not load pastes. Please try again later.</p>';
+            }
+        }
+        
+        loadAllPublicPastes();
+    </script>
+</body>
+</html>

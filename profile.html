@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Profile - Vioo-Code</title>
+    <link rel="stylesheet" href="css/style.css">
+     <link rel="icon" href="https://api.dicebear.com/8.x/initials/svg?seed=VC&backgroundColor=1a1a2e,ffc300" type="image/svg+xml">
+</head>
+<body>
+    <header>
+        <a href="/" class="logo">Vioo<span>-Code</span></a>
+        <nav>
+            <ul class="main-nav">
+                <li><a href="/explore.html">Explore</a></li>
+                <li class="when-signed-in" style="display: none;"><a href="/new-paste.html">New Paste</a></li>
+            </ul>
+        </nav>
+        <nav>
+            <ul class="auth-nav">
+                <li class="when-signed-out"><a href="/sign-in.html" class="btn btn-secondary">Sign In</a></li>
+                <li class="when-signed-out"><a href="/sign-up.html" class="btn btn-primary">Sign Up</a></li>
+                <li class="when-signed-in" style="display: none;">
+                    <a id="nav-profile-link" href="#" class="user-info">
+                        <img src="" alt="User Avatar" class="user-avatar">
+                        <span class="user-username"></span>
+                    </a>
+                </li>
+                <li class="when-signed-in" style="display: none;">
+                     <button id="sign-out-btn" class="btn btn-secondary">Logout</button>
+                </li>
+            </ul>
+        </nav>
+    </header>
+
+    <main class="container" id="profile-container">
+        <p>Loading profile...</p>
+    </main>
+
+    <footer>
+        <p>&copy; 2025 Vioo-Code. A Modern Platform for Developers.</p>
+    </footer>
+
+    <script type="module">
+        import { handleSignOut } from './config/auth.js';
+        import { getPastesByUsername } from './config/api.js';
+
+        const signOutBtn = document.getElementById('sign-out-btn');
+        signOutBtn.addEventListener('click', handleSignOut);
+        
+        const profileContainer = document.getElementById('profile-container');
+        const urlParams = new URLSearchParams(window.location.search);
+        const username = urlParams.get('username');
+
+        async function loadProfile() {
+            if (!username) {
+                profileContainer.innerHTML = '<h1>User not specified.</h1>';
+                return;
+            }
+
+            try {
+                const { user, pastes } = await getPastesByUsername(username);
+
+                if (!user) {
+                    profileContainer.innerHTML = '<h1>User not found.</h1>';
+                    return;
+                }
+                
+                document.title = `${user.username}'s Profile - Vioo-Code`;
+                
+                let pastesHTML = '<h3>No public pastes yet.</h3>';
+                if (pastes.length > 0) {
+                    pastesHTML = `
+                        <div class="paste-grid">
+                            ${pastes.map(paste => `
+                                <div class="paste-card">
+                                    <h3><a href="/view-paste.html?id=${paste.pasteId}">${paste.title}</a></h3>
+                                    <div class="paste-meta">
+                                        <span class="language-badge">${paste.language}</span>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                }
+
+                profileContainer.innerHTML = `
+                    <div class="profile-header">
+                        <img src="${user.avatarUrl}" alt="${user.username}'s avatar" class="profile-avatar">
+                        <div class="profile-info">
+                            <h1>${user.username}</h1>
+                            <p>${user.about}</p>
+                        </div>
+                    </div>
+                    <h2>${user.username}'s Public Pastes</h2>
+                    ${pastesHTML}
+                `;
+
+            } catch (error) {
+                console.error('Error loading profile:', error);
+                profileContainer.innerHTML = '<h1>Could not load profile.</h1>';
+            }
+        }
+
+        loadProfile();
+    </script>
+</body>
+</html>

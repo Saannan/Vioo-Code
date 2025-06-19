@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>View Paste - Vioo-Code</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
+    <link rel="icon" href="https://api.dicebear.com/8.x/initials/svg?seed=VC&backgroundColor=1a1a2e,ffc300" type="image/svg+xml">
+</head>
+<body>
+    <header>
+        <a href="/" class="logo">Vioo<span>-Code</span></a>
+        <nav>
+            <ul class="main-nav">
+                <li><a href="/explore.html">Explore</a></li>
+                <li class="when-signed-in" style="display: none;"><a href="/new-paste.html">New Paste</a></li>
+            </ul>
+        </nav>
+        <nav>
+            <ul class="auth-nav">
+                <li class="when-signed-out"><a href="/sign-in.html" class="btn btn-secondary">Sign In</a></li>
+                <li class="when-signed-out"><a href="/sign-up.html" class="btn btn-primary">Sign Up</a></li>
+                <li class="when-signed-in" style="display: none;">
+                    <a id="nav-profile-link" href="#" class="user-info">
+                        <img src="" alt="User Avatar" class="user-avatar">
+                        <span class="user-username"></span>
+                    </a>
+                </li>
+                <li class="when-signed-in" style="display: none;">
+                     <button id="sign-out-btn" class="btn btn-secondary">Logout</button>
+                </li>
+            </ul>
+        </nav>
+    </header>
+
+    <main class="container" id="paste-view-container">
+        <div id="loader"><p>Loading paste...</p></div>
+    </main>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+    
+    <script type="module">
+        import { handleSignOut, getCurrentUser } from './config/auth.js';
+        import { getPasteById, getRawPasteContent, postComment, listenForComments } from './config/api.js';
+        import { supabaseConfig } from './config/config.js';
+
+        const container = document.getElementById('paste-view-container');
+        const urlParams = new URLSearchParams(window.location.search);
+        const pasteId = urlParams.get('id');
+
+        const signOutBtn = document.getElementById('sign-out-btn');
+        signOutBtn.addEventListener('click', handleSignOut);
+        
+        async function renderPaste() {
+            if (!pasteId) {
+                container.innerHTML = '<h1>Paste not found</h1><p>The requested paste ID is missing.</p>';
+                return;
+            }
+
+            try {
+                const paste = await getPasteById(pasteId);
+                if (!paste) {
+                    container.innerHTML = '<h1>Paste not found</h1><p>This paste may have been deleted or the link is incorrect.</p>';
+                    return;
+                }
+
+                document.title = `${paste.title} - Vioo-Code`;
+                const rawContent = await getRawPasteContent(paste.storagePath);
+                
+                container.innerHTML = `
+                    <div class="view-paste-header">
+                        <h1>${paste.title}</h1>
+                        <div class="view-paste-meta">
+                            <div class="author-info">
+                                <img src="${paste.authorAvatarUrl}" alt="${paste.authorUsername}'s avatar">
+                                <span>By <a href="/profile.html?username=${paste.authorUsername}">${paste.authorUsername}</a></span>
+                            </div>
+                            <span>Language: ${paste.language}</span>
+                            <span>Visibility: ${paste.visibility}</span>
+                            <div class="paste-actions">
+                                <a href="#" id="copy-btn" class="btn btn-secondary">Copy</a>
+                                <a href="${supabaseConfig.url}/storage/v1/object/public/${supabaseConfig.bucket}/${paste.storagePath}" target="_blank" class="btn btn-secondary">Raw</a>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="paste-content-container">
+                        <pre><code class="language-${paste.language}">${rawContent.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</code></pre>
+                    </div>
+                    <div class="comments-section">
+                        <h2>Comments</h2>
+                        <div id="comment-form-container" class="when-signed-in" style="display: none;">
+                            <form id="comment-form">
+                                <div class="form-group">
+                                    <textarea id="comment-text" placeholder="Add a public comment..." required></textarea>
+                                </div>
+                                <button type="submit" class="btn btn-primary">Comment</button>
+                            </form>
+                        </div>
+                        <div id="comment-prompt" class="when-signed-out">
+                            <p><a href="/sign-in.html">Sign in</a> to post a comment.</p>
+                        </div>
+                        <div id="comment-list" class="comment-list"></div>
+                    </div>
+                `;
+
+                Prism.highlightAll();
+                setupEventListeners(rawContent);
+                loadComments();
+
+            } catch (error) {
+                console.error("Error loading paste:", error);
+                container.innerHTML = `<h1>Error</h1><p>${error.message}</p>`;
+            }
+        }
+
+        function setupEventListeners(content) {
+            document.getElementById('copy-btn').addEventListener('click', (e) => {
+                e.preventDefault();
+                navigator.clipboard.writeText(content).then(() => {
+                    e.target.textContent = 'Copied!';
+                    setTimeout(() => e.target.textContent = 'Copy', 2000);
+                });
+            });
+
+            const commentForm = document.getElementById('comment-form');
+            if(commentForm) {
+                commentForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const text = document.getElementById('comment-text').value;
+                    if (!text.trim()) return;
+
+                    try {
+                        await postComment(pasteId, text, getCurrentUser());
+                        document.getElementById('comment-text').value = '';
+                    } catch (error) {
+                        console.error('Error posting comment:', error);
+                        alert('Could not post comment.');
+                    }
+                });
+            }
+        }
+
+        function loadComments() {
+            const commentList = document.getElementById('comment-list');
+            listenForComments(pasteId, (comments) => {
+                if(comments.length === 0) {
+                    commentList.innerHTML = '<p>No comments yet.</p>';
+                    return;
+                }
+                commentList.innerHTML = comments.map(c => `
+                    <div class="comment">
+                        <div class="comment-header">
+                            <img src="${c.authorAvatarUrl}" alt="${c.authorUsername}'s avatar">
+                            <a href="/profile.html?username=${c.authorUsername}" class="username">${c.authorUsername}</a>
+                            <span class="timestamp">${new Date(c.timestamp).toLocaleString()}</span>
+                        </div>
+                        <div class="comment-body">
+                            <p>${c.text.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</p>
+                        </div>
+                    </div>
+                `).join('');
+            });
+        }
+        
+        renderPaste();
+    </script>
+</body>
+</html>
