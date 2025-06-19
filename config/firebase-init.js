@@ -5,13 +5,14 @@ import { getDatabase } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
 const firebaseConfig = {
-    apiKey: "AIzaSyDQXA1Yf9CXa5lizXBq7tcABfrSaroIuLo",
-    authDomain: "vcodesz.firebaseapp.com",
-    databaseURL: "https://vcodesz-default-rtdb.asia-southeast1.firebasedatabase.app",
-    projectId: "vcodesz",
-    storageBucket: "vcodesz.appspot.com",
-    messagingSenderId: "712929640679",
-    appId: "1:712929640679:web:21a1b24911a10fb1872242"
+    apiKey: "AIzaSyC9LImjPAa_kn028yEjVyyfHP_4Rb9y_CI",
+    authDomain: "vioo-code.firebaseapp.com",
+    databaseURL: "https://vioo-code-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "vioo-code",
+    storageBucket: "vioo-code.firebasestorage.app",
+    messagingSenderId: "382046884335",
+    appId: "1:382046884335:web:4b136306938bdefabc661a",
+    measurementId: "G-JNYQCDV3CD"
 };
 
 const supabaseConfig = {
