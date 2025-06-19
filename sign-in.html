@@ -8,13 +8,13 @@
     <link rel="icon" href="https://api.dicebear.com/8.x/initials/svg?seed=VC&backgroundColor=1a1a2e,ffc300" type="image/svg+xml">
 </head>
 <body>
-    <header>
+    <header class="main-header">
          <a href="/" class="logo">Vioo<span>-Code</span></a>
     </header>
-    
-    <main>
+
+    <main class="container">
         <div class="form-container">
-            <h1>Sign In to Vioo-Code</h1>
+            <h1>Welcome Back</h1>
             <form id="sign-in-form">
                 <div class="form-group">
                     <label for="email">Email</label>
@@ -27,7 +27,7 @@
                 <button type="submit" class="btn btn-primary" style="width: 100%;">Sign In</button>
                  <p id="error-message" class="error-message"></p>
             </form>
-             <p style="text-align: center; margin-top: 1rem;">
+             <p style="text-align: center; margin-top: 1.5rem; font-size: 0.9rem;">
                 Don't have an account? <a href="/sign-up.html">Sign Up</a>
             </p>
         </div>
@@ -38,10 +38,13 @@
 
         const signInForm = document.getElementById('sign-in-form');
         const errorMessage = document.getElementById('error-message');
+        const submitBtn = signInForm.querySelector('button[type="submit"]');
 
         signInForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             errorMessage.style.display = 'none';
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Signing In...';
             
             const email = signInForm.email.value;
             const password = signInForm.password.value;
@@ -52,6 +55,9 @@
             } catch (error) {
                 errorMessage.textContent = 'Invalid email or password.';
                 errorMessage.style.display = 'block';
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Sign In';
             }
         });
     </script>

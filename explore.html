@@ -8,12 +8,12 @@
      <link rel="icon" href="https://api.dicebear.com/8.x/initials/svg?seed=VC&backgroundColor=1a1a2e,ffc300" type="image/svg+xml">
 </head>
 <body>
-    <header>
+    <header class="main-header">
         <a href="/" class="logo">Vioo<span>-Code</span></a>
         <nav>
             <ul class="main-nav">
                 <li><a href="/explore.html">Explore</a></li>
-                <li class="when-signed-in" style="display: none;"><a href="/new-paste.html">New Paste</a></li>
+                <li class="when-signed-in" style="display: none;"><a href="/new-paste.html" class="btn btn-primary">New Paste</a></li>
             </ul>
         </nav>
         <nav>
@@ -33,27 +33,27 @@
         </nav>
     </header>
 
-    <main>
-        <div class="container">
-            <h1>Explore All Public Pastes</h1>
-            <div id="explore-pastes-grid" class="paste-grid">
-                <p>Loading pastes...</p>
-            </div>
+    <main class="container">
+        <h1 class="page-title">Explore All Public Pastes</h1>
+        <div id="explore-pastes-grid" class="paste-grid">
         </div>
     </main>
-
-    <footer>
-        <p>&copy; 2025 Vioo-Code. A Modern Platform for Developers.</p>
-    </footer>
 
     <script type="module">
         import { handleSignOut } from './config/auth.js';
         import { getAllPublicPastes } from './config/api.js';
 
-        const signOutBtn = document.getElementById('sign-out-btn');
-        signOutBtn.addEventListener('click', handleSignOut);
+        document.getElementById('sign-out-btn').addEventListener('click', handleSignOut);
 
         const pastesGrid = document.getElementById('explore-pastes-grid');
+        
+        function renderSkeletons() {
+            let skeletons = '';
+            for(let i=0; i < 12; i++) {
+                skeletons += '<div class="skeleton skeleton-card"></div>';
+            }
+            pastesGrid.innerHTML = skeletons;
+        }
 
         async function loadAllPublicPastes() {
             try {
@@ -65,8 +65,10 @@
                 
                 pastesGrid.innerHTML = pastes.map(paste => `
                     <div class="paste-card">
-                        <h3><a href="/view-paste.html?id=${paste.pasteId}">${paste.title}</a></h3>
-                        <div class="paste-meta">
+                         <div>
+                           <h3 class="paste-card-title"><a href="/view-paste.html?id=${paste.pasteId}">${paste.title}</a></h3>
+                        </div>
+                        <div class="paste-card-footer">
                             <img src="${paste.authorAvatarUrl}" alt="${paste.authorUsername}'s avatar">
                             <a href="/profile.html?username=${paste.authorUsername}">${paste.authorUsername}</a>
                             <span class="language-badge">${paste.language}</span>
@@ -75,11 +77,11 @@
                 `).join('');
 
             } catch (error) {
-                console.error("Error loading pastes:", error);
-                pastesGrid.innerHTML = '<p>Could not load pastes. Please try again later.</p>';
+                pastesGrid.innerHTML = '<p style="color: var(--error);">Could not load pastes. Please check your connection or try again later.</p>';
             }
         }
         
+        renderSkeletons();
         loadAllPublicPastes();
     </script>
 </body>

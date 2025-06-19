@@ -9,12 +9,12 @@
     <link rel="icon" href="https://api.dicebear.com/8.x/initials/svg?seed=VC&backgroundColor=1a1a2e,ffc300" type="image/svg+xml">
 </head>
 <body>
-    <header>
+    <header class="main-header">
         <a href="/" class="logo">Vioo<span>-Code</span></a>
         <nav>
             <ul class="main-nav">
                 <li><a href="/explore.html">Explore</a></li>
-                <li class="when-signed-in" style="display: none;"><a href="/new-paste.html">New Paste</a></li>
+                <li class="when-signed-in" style="display: none;"><a href="/new-paste.html" class="btn btn-primary">New Paste</a></li>
             </ul>
         </nav>
         <nav>
@@ -35,7 +35,13 @@
     </header>
 
     <main class="container" id="paste-view-container">
-        <div id="loader"><p>Loading paste...</p></div>
+        <div class="view-paste-header skeleton">
+            <div class="skeleton-text" style="width: 60%; height: 2.25rem;"></div>
+            <div class="skeleton-text" style="width: 80%; margin-top: 1rem;"></div>
+        </div>
+        <div class="paste-content-container">
+            <pre class="skeleton" style="height: 300px; padding: 0;"></pre>
+        </div>
     </main>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
@@ -50,19 +56,18 @@
         const urlParams = new URLSearchParams(window.location.search);
         const pasteId = urlParams.get('id');
 
-        const signOutBtn = document.getElementById('sign-out-btn');
-        signOutBtn.addEventListener('click', handleSignOut);
+        document.getElementById('sign-out-btn').addEventListener('click', handleSignOut);
         
         async function renderPaste() {
             if (!pasteId) {
-                container.innerHTML = '<h1>Paste not found</h1><p>The requested paste ID is missing.</p>';
+                container.innerHTML = '<h1 class="page-title">Paste Not Found</h1><p>The requested paste ID is missing.</p>';
                 return;
             }
 
             try {
                 const paste = await getPasteById(pasteId);
                 if (!paste) {
-                    container.innerHTML = '<h1>Paste not found</h1><p>This paste may have been deleted or the link is incorrect.</p>';
+                    container.innerHTML = '<h1 class="page-title">Paste Not Found</h1><p>This paste may have been deleted or the link is incorrect.</p>';
                     return;
                 }
 
@@ -73,14 +78,14 @@
                     <div class="view-paste-header">
                         <h1>${paste.title}</h1>
                         <div class="view-paste-meta">
-                            <div class="author-info">
+                            <div class="meta-item author-info">
                                 <img src="${paste.authorAvatarUrl}" alt="${paste.authorUsername}'s avatar">
                                 <span>By <a href="/profile.html?username=${paste.authorUsername}">${paste.authorUsername}</a></span>
                             </div>
-                            <span>Language: ${paste.language}</span>
-                            <span>Visibility: ${paste.visibility}</span>
+                            <div class="meta-item">Language: ${paste.language}</div>
+                            <div class="meta-item">Visibility: ${paste.visibility}</div>
                             <div class="paste-actions">
-                                <a href="#" id="copy-btn" class="btn btn-secondary">Copy</a>
+                                <button id="copy-btn" class="btn btn-secondary">Copy</button>
                                 <a href="${supabaseConfig.url}/storage/v1/object/public/${supabaseConfig.bucket}/${paste.storagePath}" target="_blank" class="btn btn-secondary">Raw</a>
                             </div>
                         </div>
@@ -88,21 +93,21 @@
                     <div class="paste-content-container">
                         <pre><code class="language-${paste.language}">${rawContent.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</code></pre>
                     </div>
-                    <div class="comments-section">
+                    <section class="comments-section">
                         <h2>Comments</h2>
                         <div id="comment-form-container" class="when-signed-in" style="display: none;">
                             <form id="comment-form">
                                 <div class="form-group">
                                     <textarea id="comment-text" placeholder="Add a public comment..." required></textarea>
                                 </div>
-                                <button type="submit" class="btn btn-primary">Comment</button>
+                                <button type="submit" class="btn btn-primary">Post Comment</button>
                             </form>
                         </div>
                         <div id="comment-prompt" class="when-signed-out">
                             <p><a href="/sign-in.html">Sign in</a> to post a comment.</p>
                         </div>
                         <div id="comment-list" class="comment-list"></div>
-                    </div>
+                    </section>
                 `;
 
                 Prism.highlightAll();
@@ -110,33 +115,40 @@
                 loadComments();
 
             } catch (error) {
-                console.error("Error loading paste:", error);
-                container.innerHTML = `<h1>Error</h1><p>${error.message}</p>`;
+                container.innerHTML = `<h1 class="page-title">Error</h1><p>${error.message}</p>`;
             }
         }
 
         function setupEventListeners(content) {
-            document.getElementById('copy-btn').addEventListener('click', (e) => {
+            const copyBtn = document.getElementById('copy-btn');
+            copyBtn.addEventListener('click', (e) => {
                 e.preventDefault();
                 navigator.clipboard.writeText(content).then(() => {
-                    e.target.textContent = 'Copied!';
-                    setTimeout(() => e.target.textContent = 'Copy', 2000);
+                    copyBtn.textContent = 'Copied!';
+                    copyBtn.style.borderColor = 'var(--success)';
+                    setTimeout(() => {
+                        copyBtn.textContent = 'Copy';
+                        copyBtn.style.borderColor = 'var(--border-color)';
+                    }, 2000);
                 });
             });
 
             const commentForm = document.getElementById('comment-form');
             if(commentForm) {
+                const commentBtn = commentForm.querySelector('button');
                 commentForm.addEventListener('submit', async (e) => {
                     e.preventDefault();
                     const text = document.getElementById('comment-text').value;
                     if (!text.trim()) return;
+                    commentBtn.disabled = true;
 
                     try {
                         await postComment(pasteId, text, getCurrentUser());
                         document.getElementById('comment-text').value = '';
                     } catch (error) {
-                        console.error('Error posting comment:', error);
                         alert('Could not post comment.');
+                    } finally {
+                        commentBtn.disabled = false;
                     }
                 });
             }

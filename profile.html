@@ -8,12 +8,12 @@
      <link rel="icon" href="https://api.dicebear.com/8.x/initials/svg?seed=VC&backgroundColor=1a1a2e,ffc300" type="image/svg+xml">
 </head>
 <body>
-    <header>
+    <header class="main-header">
         <a href="/" class="logo">Vioo<span>-Code</span></a>
         <nav>
             <ul class="main-nav">
                 <li><a href="/explore.html">Explore</a></li>
-                <li class="when-signed-in" style="display: none;"><a href="/new-paste.html">New Paste</a></li>
+                <li class="when-signed-in" style="display: none;"><a href="/new-paste.html" class="btn btn-primary">New Paste</a></li>
             </ul>
         </nav>
         <nav>
@@ -34,27 +34,27 @@
     </header>
 
     <main class="container" id="profile-container">
-        <p>Loading profile...</p>
+         <div class="profile-header skeleton" style="height: 250px;"></div>
+         <div class="paste-grid">
+            <div class="skeleton skeleton-card"></div>
+            <div class="skeleton skeleton-card"></div>
+            <div class="skeleton skeleton-card"></div>
+         </div>
     </main>
-
-    <footer>
-        <p>&copy; 2025 Vioo-Code. A Modern Platform for Developers.</p>
-    </footer>
 
     <script type="module">
         import { handleSignOut } from './config/auth.js';
         import { getPastesByUsername } from './config/api.js';
 
-        const signOutBtn = document.getElementById('sign-out-btn');
-        signOutBtn.addEventListener('click', handleSignOut);
-        
+        document.getElementById('sign-out-btn').addEventListener('click', handleSignOut);
+
         const profileContainer = document.getElementById('profile-container');
         const urlParams = new URLSearchParams(window.location.search);
         const username = urlParams.get('username');
 
         async function loadProfile() {
             if (!username) {
-                profileContainer.innerHTML = '<h1>User not specified.</h1>';
+                profileContainer.innerHTML = '<h1 class="page-title">User not specified.</h1>';
                 return;
             }
 
@@ -62,7 +62,7 @@
                 const { user, pastes } = await getPastesByUsername(username);
 
                 if (!user) {
-                    profileContainer.innerHTML = '<h1>User not found.</h1>';
+                    profileContainer.innerHTML = '<h1 class="page-title">User not found.</h1>';
                     return;
                 }
                 
@@ -74,9 +74,9 @@
                         <div class="paste-grid">
                             ${pastes.map(paste => `
                                 <div class="paste-card">
-                                    <h3><a href="/view-paste.html?id=${paste.pasteId}">${paste.title}</a></h3>
-                                    <div class="paste-meta">
-                                        <span class="language-badge">${paste.language}</span>
+                                    <h3 class="paste-card-title"><a href="/view-paste.html?id=${paste.pasteId}">${paste.title}</a></h3>
+                                    <div class="paste-card-footer">
+                                         <span class="language-badge">${paste.language}</span>
                                     </div>
                                 </div>
                             `).join('')}
@@ -92,13 +92,12 @@
                             <p>${user.about}</p>
                         </div>
                     </div>
-                    <h2>${user.username}'s Public Pastes</h2>
+                    <h2 class="page-title" style="font-size: 1.5rem;">${user.username}'s Public Pastes</h2>
                     ${pastesHTML}
                 `;
 
             } catch (error) {
-                console.error('Error loading profile:', error);
-                profileContainer.innerHTML = '<h1>Could not load profile.</h1>';
+                profileContainer.innerHTML = '<h1 class="page-title">Could not load profile.</h1>';
             }
         }
 
