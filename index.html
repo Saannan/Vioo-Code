@@ -3,68 +3,64 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard - Vioo-Code</title>
+    <title>Vioo-Code - Modern Code Sharing</title>
     <link rel="stylesheet" href="css/style.css">
-    <link rel="icon" href="https://api.dicebear.com/8.x/initials/svg?seed=VC&backgroundColor=1a1a2e,ffc300" type="image/svg+xml">
+    <link rel="icon" href="https://api.dicebear.com/8.x/initials/svg?seed=VC&backgroundColor=0D1117,ffc300" type="image/svg+xml">
 </head>
 <body>
-    <div class="page-wrapper">
-        <aside class="sidebar">
-            <div class="sidebar-header">
-                <a href="/" class="logo">Vioo<span>-Code</span></a>
-            </div>
-            <ul class="main-nav">
-                <li><a href="/" class="active">Dashboard</a></li>
-                <li><a href="/explore.html">Explore</a></li>
-                <li><a href="/new-paste.html">New Paste</a></li>
-            </ul>
-            <div class="profile-section when-signed-in">
-                <div class="profile-dropdown">
-                    <ul class="profile-dropdown-list">
-                        <li><a id="dropdown-profile-link" href="#">My Profile</a></li>
-                        <li><button id="logout-btn" class="logout-btn">Logout</button></li>
-                    </ul>
+    <header class="header">
+        <div class="container header-container">
+            <a href="/" class="logo">Vioo<span>-Code</span></a>
+            <nav>
+                <ul class="nav-links" id="nav-menu">
+                    <li><a href="/explore.html">Explore</a></li>
+                    <li class="when-signed-in" style="display: none;"><a href="/profile.html" id="nav-profile-link-mobile">My Profile</a></li>
+                    <li class="when-signed-in" style="display: none;"><button id="sign-out-btn-mobile" class="btn-logout">Logout</button></li>
+                    <li class="when-signed-out" style="display: none;"><a href="/sign-in.html">Sign In</a></li>
+                    <li class="when-signed-out" style="display: none;"><a href="/sign-up.html">Sign Up</a></li>
+                </ul>
+            </nav>
+            <div class="nav-auth">
+                <a href="/new-paste.html" class="btn btn-primary when-signed-in" style="display: none;">New Paste</a>
+                <div class="user-menu when-signed-in" style="display: none;">
+                    <a href="/profile.html" id="nav-profile-link"><img src="" alt="User Avatar" class="user-avatar"></a>
                 </div>
-                <div class="profile-section-toggle">
-                    <img src="" alt="User Avatar" class="user-avatar">
-                    <div class="user-info">
-                        <span class="user-username"></span>
-                        <span class="user-email"></span>
-                    </div>
-                </div>
+                 <a href="/sign-in.html" class="btn btn-secondary when-signed-out">Sign In</a>
+                 <a href="/sign-up.html" class="btn btn-primary when-signed-out">Sign Up</a>
+                <button class="mobile-nav-toggle" id="mobile-nav-toggle">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" /></svg>
+                </button>
             </div>
-        </aside>
+        </div>
+    </header>
 
-        <main class="main-content">
-            <header class="mobile-header">
-                <button class="hamburger-btn">&#9776;</button>
-                <a href="/" class="logo">Vioo<span>-Code</span></a>
-            </header>
-            <div class="page-header">
-                <h1>Dashboard</h1>
-                <p>Welcome back! Here are the latest public pastes.</p>
-            </div>
-            <div id="latest-pastes-grid" class="paste-grid"></div>
-        </main>
-    </div>
+    <main class="main-content">
+        <div class="container">
+            <h1 class="page-heading">Latest Public Pastes</h1>
+            <div id="pastes-grid" class="paste-grid"></div>
+        </div>
+    </main>
 
     <script type="module">
-        import { initializeAuthUI } from './config/auth.js';
+        import { handleSignOut } from './config/auth.js';
         import { getPublicPastes } from './config/api.js';
 
-        initializeAuthUI();
+        document.querySelector('.user-menu').addEventListener('click', (e) => {
+            if (e.target.id === 'sign-out-btn') handleSignOut();
+        });
+        
+        const mobileNavToggle = document.getElementById('mobile-nav-toggle');
+        const navMenu = document.getElementById('nav-menu');
+        mobileNavToggle.addEventListener('click', () => navMenu.classList.toggle('active'));
+        document.getElementById('sign-out-btn-mobile')?.addEventListener('click', handleSignOut);
 
-        const pastesGrid = document.getElementById('latest-pastes-grid');
+        const pastesGrid = document.getElementById('pastes-grid');
         
         function renderSkeletons() {
-            let skeletons = '';
-            for(let i=0; i < 6; i++) {
-                skeletons += '<div class="skeleton skeleton-card"></div>';
-            }
-            pastesGrid.innerHTML = skeletons;
+            pastesGrid.innerHTML = Array(6).fill('<div class="skeleton skeleton-card"></div>').join('');
         }
 
-        async function loadLatestPastes() {
+        async function loadPastes() {
             try {
                 const pastes = await getPublicPastes(9);
                 if (pastes.length === 0) {
@@ -74,22 +70,28 @@
                 
                 pastesGrid.innerHTML = pastes.map(paste => `
                     <div class="paste-card">
-                        <h3 class="paste-card-title"><a href="/view-paste.html?id=${paste.pasteId}">${paste.title}</a></h3>
-                        <p class="paste-card-desc">Click to view the content.</p>
-                        <div class="paste-card-footer">
-                            <img src="${paste.authorAvatarUrl}" alt="${paste.authorUsername}'s avatar">
-                            <a href="/profile.html?username=${paste.authorUsername}">${paste.authorUsername}</a>
+                        <div class="paste-card-header">
+                            <img src="${paste.authorAvatarUrl}" alt="${paste.authorUsername}">
+                            <div class="paste-card-author">
+                                <a href="/profile.html?username=${paste.authorUsername}"><strong>${paste.authorUsername}</strong></a>
+                            </div>
                             <span class="language-badge">${paste.language}</span>
+                        </div>
+                        <h3 class="paste-card-title">
+                            <a href="/view-paste.html?id=${paste.pasteId}">${paste.title}</a>
+                        </h3>
+                        <div class="paste-card-footer">
+                           Created on ${new Date(paste.createdAt?.toDate()).toLocaleDateString()}
                         </div>
                     </div>
                 `).join('');
             } catch (error) {
-                pastesGrid.innerHTML = `<p style="color: var(--error);">${error.message}</p>`;
+                pastesGrid.innerHTML = '<p style="color: var(--danger);">Could not load pastes. Please try again later.</p>';
             }
         }
         
         renderSkeletons();
-        loadLatestPastes();
+        loadPastes();
     </script>
 </body>
 </html>
