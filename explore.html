@@ -4,120 +4,103 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Explore - Vioo-Code</title>
+    <script src="https://unpkg.com/feather-icons"></script>
     <link rel="stylesheet" href="css/style.css">
     <link rel="icon" href="https://api.dicebear.com/8.x/initials/svg?seed=VC&backgroundColor=1a1a2e,ffc300" type="image/svg+xml">
 </head>
 <body>
-    <div class="aurora-background">
-        <div class="aurora-shape1"></div>
-        <div class="aurora-shape2"></div>
-    </div>
     <div class="app-layout">
         <aside class="sidebar">
-            <a href="/" class="sidebar-logo">Vioo<span>-Code</span></a>
-            <nav>
-                <ul class="sidebar-nav">
-                    <li><a href="/index.html">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
-                        <span>Home</span>
-                    </a></li>
-                    <li><a href="/explore.html" class="active">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"></path><circle cx="12" cy="13" r="3"></circle></svg>
-                        <span>Explore</span>
-                    </a></li>
-                    <li class="when-signed-in">
-                        <a href="/new-paste.html">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="M12 5v14"></path></svg>
-                        <span>New Paste</span>
-                    </a></li>
-                </ul>
-            </nav>
+            <h1 class="logo">Vioo<span>-Code</span></h1>
+            <ul class="sidebar-nav">
+                <li><a href="/index.html"><i data-feather="home"></i> Home</a></li>
+                <li><a href="/explore.html" class="active"><i data-feather="compass"></i> Explore</a></li>
+                <li class="when-signed-in" style="display: none;"><a href="/new-paste.html"><i data-feather="plus-square"></i> New Paste</a></li>
+            </ul>
+            <div class="sidebar-footer">
+                <div class="auth-block when-signed-out">
+                    <a href="/sign-up.html" class="btn btn-primary">Sign Up</a>
+                    <a href="/sign-in.html" class="btn btn-secondary">Sign In</a>
+                </div>
+                <div class="user-profile-widget when-signed-in" style="display: none;">
+                    <img src="" class="user-avatar" alt="User Avatar">
+                    <div class="user-profile-widget-info">
+                        <div class="user-username"></div>
+                        <div class="user-email"></div>
+                    </div>
+                    <button id="logout-btn"><i data-feather="log-out"></i></button>
+                </div>
+            </div>
         </aside>
 
-        <div class="main-content">
-             <header class="main-header">
-                <button class="menu-toggle">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></svg>
-                </button>
-                <div class="when-signed-out">
-                    <a href="/sign-in.html" class="btn btn-secondary">Sign In</a>
-                    <a href="/sign-up.html" class="btn btn-primary">Sign Up</a>
-                </div>
-                <div class="user-menu when-signed-in">
-                    <button class="user-menu-trigger">
-                        <img src="" alt="User Avatar" class="user-avatar-img">
-                    </button>
-                    <div class="user-menu-dropdown">
-                        <div class="user-menu-header">
-                            <span class="user-username-text"></span>
-                        </div>
-                        <ul class="user-menu-list">
-                            <li><a id="dropdown-profile-link" href="#">My Profile</a></li>
-                            <li><button id="logout-btn" class="logout-btn">Logout</button></li>
-                        </ul>
-                    </div>
-                </div>
+        <main class="main-content">
+            <header class="page-header">
+                <h1>Explore All Pastes</h1>
             </header>
-            
-            <main class="page-content">
-                <h1 class="page-title">Explore All Public Pastes</h1>
-                <div id="explore-pastes-grid" class="paste-grid"></div>
-            </main>
-        </div>
+            <div class="paste-list" id="paste-list-container"></div>
+        </main>
+        
+        <nav class="mobile-nav">
+            <ul class="mobile-nav-list">
+                <li><a href="/index.html"><i data-feather="home"></i><span>Home</span></a></li>
+                <li><a href="/explore.html" class="active"><i data-feather="compass"></i><span>Explore</span></a></li>
+                <li class="when-signed-in" style="display: none;"><a href="/new-paste.html"><i data-feather="plus-square"></i><span>New</span></a></li>
+                <li class="when-signed-in" style="display: none;"><a href="#" id="mobile-logout-btn"><i data-feather="log-out"></i><span>Logout</span></a></li>
+                <li class="when-signed-out"><a href="/sign-in.html"><i data-feather="log-in"></i><span>Sign In</span></a></li>
+            </ul>
+        </nav>
     </div>
 
     <script type="module">
-        import { handleSignOut, getCurrentUser } from './config/auth.js';
+        import { handleSignOut } from './config/auth.js';
         import { getAllPublicPastes } from './config/api.js';
 
-        const pastesGrid = document.getElementById('explore-pastes-grid');
+        document.getElementById('logout-btn').addEventListener('click', handleSignOut);
+        document.getElementById('mobile-logout-btn').addEventListener('click', (e) => {
+            e.preventDefault();
+            handleSignOut();
+        });
+        
+        const container = document.getElementById('paste-list-container');
         
         function renderSkeletons() {
-             pastesGrid.innerHTML = Array(12).fill('<div class="skeleton skeleton-card" style="height: 160px;"></div>').join('');
+            let skeletons = '';
+            for(let i = 0; i < 10; i++) {
+                skeletons += '<div class="skeleton skeleton-card"></div>';
+            }
+            container.innerHTML = skeletons;
         }
 
-        async function loadAllPublicPastes() {
+        async function loadPastes() {
             try {
                 const pastes = await getAllPublicPastes();
                 if (pastes.length === 0) {
-                    pastesGrid.innerHTML = '<p>No public pastes available to explore.</p>';
+                    container.innerHTML = '<p>No public pastes available.</p>';
                     return;
                 }
-                pastesGrid.innerHTML = pastes.map(paste => `
-                    <div class="paste-card">
-                        <h3 class="paste-card-title"><a href="/view-paste.html?id=${paste.pasteId}">${paste.title}</a></h3>
-                        <div class="paste-card-footer">
-                            <img src="${paste.authorAvatarUrl}" alt="${paste.authorUsername}'s avatar">
-                            <a href="/profile.html?username=${paste.authorUsername}">${paste.authorUsername}</a>
-                            <span class="language-badge">${paste.language}</span>
+                
+                container.innerHTML = pastes.map(p => `
+                    <a href="/view-paste.html?id=${p.pasteId}" class="paste-card">
+                        <div>
+                            <div class="paste-card-title">${p.title}</div>
+                            <div class="paste-card-meta">
+                                <img src="${p.authorAvatarUrl}" alt="${p.authorUsername}'s avatar">
+                                <span>${p.authorUsername}</span>
+                            </div>
                         </div>
-                    </div>
+                        <div class="paste-card-actions">
+                            <span class="language-badge">${p.language}</span>
+                        </div>
+                    </a>
                 `).join('');
             } catch (error) {
-                 pastesGrid.innerHTML = `<p style="color: var(--error);">Could not load pastes: ${error.message}</p>`;
+                container.innerHTML = `<p>${error.message}</p>`;
             }
         }
-        
+
         renderSkeletons();
-        loadAllPublicPastes();
-
-        document.getElementById('logout-btn')?.addEventListener('click', handleSignOut);
-        
-        const userMenuTrigger = document.querySelector('.user-menu-trigger');
-        const userMenuDropdown = document.querySelector('.user-menu-dropdown');
-        const profileLink = document.getElementById('dropdown-profile-link');
-
-        userMenuTrigger?.addEventListener('click', () => {
-            userMenuDropdown.classList.toggle('active');
-            const user = getCurrentUser();
-            if(user) {
-                profileLink.href = `/profile.html?username=${user.username}`;
-            }
-        });
-
-        const menuToggle = document.querySelector('.menu-toggle');
-        const sidebar = document.querySelector('.sidebar');
-        menuToggle?.addEventListener('click', () => sidebar.classList.toggle('active'));
+        loadPastes();
+        feather.replace();
     </script>
 </body>
 </html>
