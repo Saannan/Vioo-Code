@@ -3,104 +3,95 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Explore - Vioo-Code</title>
-    <script src="https://unpkg.com/feather-icons"></script>
+    <title>Explore Pastes - Vioo-Code</title>
     <link rel="stylesheet" href="css/style.css">
-    <link rel="icon" href="https://api.dicebear.com/8.x/initials/svg?seed=VC&backgroundColor=1a1a2e,ffc300" type="image/svg+xml">
+     <link rel="icon" href="https://api.dicebear.com/8.x/initials/svg?seed=VC&backgroundColor=1a1a2e,ffc300" type="image/svg+xml">
 </head>
 <body>
-    <div class="app-layout">
+    <div class="page-wrapper">
         <aside class="sidebar">
-            <h1 class="logo">Vioo<span>-Code</span></h1>
-            <ul class="sidebar-nav">
-                <li><a href="/index.html"><i data-feather="home"></i> Home</a></li>
-                <li><a href="/explore.html" class="active"><i data-feather="compass"></i> Explore</a></li>
-                <li class="when-signed-in" style="display: none;"><a href="/new-paste.html"><i data-feather="plus-square"></i> New Paste</a></li>
+            <div class="sidebar-header">
+                <a href="/" class="logo">Vioo<span>-Code</span></a>
+            </div>
+            <ul class="main-nav">
+                <li><a href="/">Dashboard</a></li>
+                <li><a href="/explore.html" class="active">Explore</a></li>
+                <li><a href="/new-paste.html">New Paste</a></li>
             </ul>
-            <div class="sidebar-footer">
-                <div class="auth-block when-signed-out">
-                    <a href="/sign-up.html" class="btn btn-primary">Sign Up</a>
-                    <a href="/sign-in.html" class="btn btn-secondary">Sign In</a>
+            <div class="profile-section when-signed-in">
+                <div class="profile-dropdown">
+                    <ul class="profile-dropdown-list">
+                        <li><a id="dropdown-profile-link" href="#">My Profile</a></li>
+                        <li><button id="logout-btn" class="logout-btn">Logout</button></li>
+                    </ul>
                 </div>
-                <div class="user-profile-widget when-signed-in" style="display: none;">
-                    <img src="" class="user-avatar" alt="User Avatar">
-                    <div class="user-profile-widget-info">
-                        <div class="user-username"></div>
-                        <div class="user-email"></div>
+                <div class="profile-section-toggle">
+                    <img src="" alt="User Avatar" class="user-avatar">
+                    <div class="user-info">
+                        <span class="user-username"></span>
+                        <span class="user-email"></span>
                     </div>
-                    <button id="logout-btn"><i data-feather="log-out"></i></button>
                 </div>
             </div>
         </aside>
 
         <main class="main-content">
-            <header class="page-header">
-                <h1>Explore All Pastes</h1>
+             <header class="mobile-header">
+                <button class="hamburger-btn">&#9776;</button>
+                <a href="/" class="logo">Vioo<span>-Code</span></a>
             </header>
-            <div class="paste-list" id="paste-list-container"></div>
+            <div class="page-header">
+                <h1>Explore Pastes</h1>
+                <p>Discover public pastes from the entire Vioo-Code community.</p>
+            </div>
+            <div id="explore-pastes-grid" class="paste-grid">
+            </div>
         </main>
-        
-        <nav class="mobile-nav">
-            <ul class="mobile-nav-list">
-                <li><a href="/index.html"><i data-feather="home"></i><span>Home</span></a></li>
-                <li><a href="/explore.html" class="active"><i data-feather="compass"></i><span>Explore</span></a></li>
-                <li class="when-signed-in" style="display: none;"><a href="/new-paste.html"><i data-feather="plus-square"></i><span>New</span></a></li>
-                <li class="when-signed-in" style="display: none;"><a href="#" id="mobile-logout-btn"><i data-feather="log-out"></i><span>Logout</span></a></li>
-                <li class="when-signed-out"><a href="/sign-in.html"><i data-feather="log-in"></i><span>Sign In</span></a></li>
-            </ul>
-        </nav>
     </div>
 
     <script type="module">
-        import { handleSignOut } from './config/auth.js';
+        import { initializeAuthUI } from './config/auth.js';
         import { getAllPublicPastes } from './config/api.js';
 
-        document.getElementById('logout-btn').addEventListener('click', handleSignOut);
-        document.getElementById('mobile-logout-btn').addEventListener('click', (e) => {
-            e.preventDefault();
-            handleSignOut();
-        });
-        
-        const container = document.getElementById('paste-list-container');
+        initializeAuthUI();
+
+        const pastesGrid = document.getElementById('explore-pastes-grid');
         
         function renderSkeletons() {
             let skeletons = '';
-            for(let i = 0; i < 10; i++) {
+            for(let i=0; i < 12; i++) {
                 skeletons += '<div class="skeleton skeleton-card"></div>';
             }
-            container.innerHTML = skeletons;
+            pastesGrid.innerHTML = skeletons;
         }
 
-        async function loadPastes() {
+        async function loadAllPublicPastes() {
             try {
                 const pastes = await getAllPublicPastes();
                 if (pastes.length === 0) {
-                    container.innerHTML = '<p>No public pastes available.</p>';
+                    pastesGrid.innerHTML = '<p>No public pastes available to explore.</p>';
                     return;
                 }
                 
-                container.innerHTML = pastes.map(p => `
-                    <a href="/view-paste.html?id=${p.pasteId}" class="paste-card">
-                        <div>
-                            <div class="paste-card-title">${p.title}</div>
-                            <div class="paste-card-meta">
-                                <img src="${p.authorAvatarUrl}" alt="${p.authorUsername}'s avatar">
-                                <span>${p.authorUsername}</span>
-                            </div>
+                pastesGrid.innerHTML = pastes.map(paste => `
+                    <div class="paste-card">
+                        <h3 class="paste-card-title"><a href="/view-paste.html?id=${paste.pasteId}">${paste.title}</a></h3>
+                        <p class="paste-card-desc">Click to view the content.</p>
+                        <div class="paste-card-footer">
+                            <img src="${paste.authorAvatarUrl}" alt="${paste.authorUsername}'s avatar">
+                            <a href="/profile.html?username=${paste.authorUsername}">${paste.authorUsername}</a>
+                            <span class="language-badge">${paste.language}</span>
                         </div>
-                        <div class="paste-card-actions">
-                            <span class="language-badge">${p.language}</span>
-                        </div>
-                    </a>
+                    </div>
                 `).join('');
+
             } catch (error) {
-                container.innerHTML = `<p>${error.message}</p>`;
+                pastesGrid.innerHTML = `<p style="color: var(--error);">${error.message}</p>`;
             }
         }
-
+        
         renderSkeletons();
-        loadPastes();
-        feather.replace();
+        loadAllPublicPastes();
     </script>
 </body>
 </html>
