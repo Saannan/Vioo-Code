@@ -1,33 +1,32 @@
 import { db, rtdb, supabase, auth } from './firebase-init.js';
-import {
-    collection,
-    addDoc,
-    getDoc,
-    getDocs,
-    setDoc,
-    doc,
-    query,
-    where,
-    orderBy,
-    limit,
-    serverTimestamp,
-    deleteDoc
+import { 
+    collection, 
+    addDoc, 
+    getDoc, 
+    getDocs, 
+    doc, 
+    query, 
+    where, 
+    orderBy, 
+    limit, 
+    serverTimestamp, 
+    deleteDoc,
+    setDoc
 } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
 import { ref as dbRef, push, set, onValue, serverTimestamp as rtdbServerTimestamp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-database.js";
 import { supabaseConfig } from './config.js';
 
 export const createPaste = async (pasteData) => {
-    const user = auth.currentUser;
-    if (!user || !user.uid) {
-        throw new Error("User not properly authenticated. Please sign in again.");
-    }
-    
-    const userDocRef = doc(db, "users", user.uid);
+    if (!auth.currentUser) throw new Error("User not authenticated.");
+
+    const userDocRef = doc(db, "users", auth.currentUser.uid);
     const userDoc = await getDoc(userDocRef);
+    if (!userDoc.exists()) throw new Error("User profile not found.");
     const userData = userDoc.data();
     
-    const pasteId = doc(collection(db, 'pastes')).id;
-    const storagePath = `${user.uid}/${pasteId}.txt`;
+    const pasteDocRef = doc(collection(db, 'pastes'));
+    const pasteId = pasteDocRef.id;
+    const storagePath = `${auth.currentUser.uid}/${pasteId}.txt`;
 
     const { error: uploadError } = await supabase.storage
         .from(supabaseConfig.bucket)
@@ -42,7 +41,7 @@ export const createPaste = async (pasteData) => {
         title: pasteData.title,
         language: pasteData.language,
         visibility: pasteData.visibility,
-        authorUid: user.uid,
+        authorUid: auth.currentUser.uid,
         authorUsername: userData.username,
         authorAvatarUrl: userData.avatarUrl,
         storagePath: storagePath,
@@ -50,7 +49,7 @@ export const createPaste = async (pasteData) => {
         createdAt: serverTimestamp()
     };
 
-    await setDoc(doc(db, "pastes", pasteId), newPaste);
+    await setDoc(pasteDocRef, newPaste);
     return newPaste;
 };
 
@@ -99,9 +98,7 @@ export const getPastesByUsername = async (username) => {
     const userQuery = query(collection(db, "users"), where("username_lowercase", "==", username.toLowerCase()), limit(1));
     const userSnapshot = await getDocs(userQuery);
 
-    if (userSnapshot.empty) {
-        throw new Error("User not found.");
-    }
+    if (userSnapshot.empty) return { user: null, pastes: [] };
     const user = userSnapshot.docs[0].data();
 
     const pastesQuery = query(
