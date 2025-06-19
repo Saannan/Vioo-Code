@@ -8,12 +8,8 @@ import { auth, db } from './firebase-init.js';
 import { doc, getDoc, getDocs, setDoc, serverTimestamp, query, collection, where } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
 
 let currentUser = null;
-let authReadyResolver;
-export const authReady = new Promise(resolve => {
-    authReadyResolver = resolve;
-});
 
-const updateUI = async (user) => {
+onAuthStateChanged(auth, async (user) => {
     const signedInElements = document.querySelectorAll('.when-signed-in');
     const signedOutElements = document.querySelectorAll('.when-signed-out');
     
@@ -22,24 +18,53 @@ const updateUI = async (user) => {
         const userDocSnap = await getDoc(userDocRef);
         currentUser = { uid: user.uid, email: user.email, ...userDocSnap.data() };
 
-        signedInElements.forEach(el => el.style.display = 'flex');
+        signedInElements.forEach(el => el.style.display = 'block');
         signedOutElements.forEach(el => el.style.display = 'none');
         
         document.querySelectorAll('.user-avatar').forEach(el => el.src = currentUser.avatarUrl);
         document.querySelectorAll('.user-username').forEach(el => el.textContent = currentUser.username);
         document.querySelectorAll('.user-email').forEach(el => el.textContent = currentUser.email);
-
+        
+        const profileLink = document.getElementById('dropdown-profile-link');
+        if(profileLink) {
+            profileLink.href = `/profile.html?username=${currentUser.username}`;
+        }
     } else {
         currentUser = null;
         signedInElements.forEach(el => el.style.display = 'none');
-        signedOutElements.forEach(el => el.style.display = 'flex');
+        signedOutElements.forEach(el => el.style.display = 'block');
     }
-};
-
-onAuthStateChanged(auth, (user) => {
-    updateUI(user);
-    authReadyResolver();
 });
+
+export function initializeAuthUI() {
+    const profileToggle = document.querySelector('.profile-section-toggle');
+    const profileDropdown = document.querySelector('.profile-dropdown');
+    
+    if(profileToggle && profileDropdown) {
+        profileToggle.addEventListener('click', () => {
+            profileDropdown.classList.toggle('active');
+        });
+        
+        document.addEventListener('click', (e) => {
+            if (!profileToggle.contains(e.target) && !profileDropdown.contains(e.target)) {
+                profileDropdown.classList.remove('active');
+            }
+        });
+    }
+
+    const logoutBtn = document.getElementById('logout-btn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', handleSignOut);
+    }
+
+    const hamburgerBtn = document.querySelector('.hamburger-btn');
+    const sidebar = document.querySelector('.sidebar');
+    if(hamburgerBtn && sidebar) {
+        hamburgerBtn.addEventListener('click', () => {
+            sidebar.classList.toggle('open');
+        });
+    }
+}
 
 export const getCurrentUser = () => {
     return currentUser;
@@ -49,6 +74,7 @@ export const handleSignUp = async (username, email, password) => {
     const usersRef = collection(db, "users");
     const q = query(usersRef, where("username_lowercase", "==", username.toLowerCase()));
     const querySnapshot = await getDocs(q);
+
     if (!querySnapshot.empty) {
         throw new Error("Username already exists.");
     }
@@ -65,6 +91,7 @@ export const handleSignUp = async (username, email, password) => {
         about: "Hello, I'm a new Vioo-Code user!",
         createdAt: serverTimestamp()
     });
+
     return user;
 };
 
