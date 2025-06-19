@@ -1,16 +1,17 @@
 import { db, rtdb, supabase, auth } from './firebase-init.js';
 import { 
-  collection, 
-  addDoc, 
-  getDoc, 
-  getDocs, 
-  doc, 
-  query, 
-  where, 
-  orderBy, 
-  limit, 
-  serverTimestamp, 
-  deleteDoc 
+    collection, 
+    addDoc, 
+    getDoc, 
+    getDocs, 
+    doc, 
+    query, 
+    where, 
+    orderBy, 
+    limit, 
+    serverTimestamp,
+    setDoc,
+    deleteDoc 
 } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
 import { ref as dbRef, push, set, onValue, serverTimestamp as rtdbServerTimestamp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-database.js";
 import { supabaseConfig } from './config.js';
@@ -20,12 +21,16 @@ export const createPaste = async (pasteData) => {
 
     const userDocRef = doc(db, "users", auth.currentUser.uid);
     const userDoc = await getDoc(userDocRef);
+    if (!userDoc.exists()) throw new Error("User profile not found.");
     const userData = userDoc.data();
+
+    const token = await auth.currentUser.getIdToken();
+    supabase.auth.setAuth(token);
     
     const pasteId = doc(collection(db, 'pastes')).id;
     const storagePath = `${auth.currentUser.uid}/${pasteId}.txt`;
 
-    const { error: uploadError } = await supabase.storage
+    const { data: uploadData, error: uploadError } = await supabase.storage
         .from(supabaseConfig.bucket)
         .upload(storagePath, pasteData.content);
 
@@ -95,7 +100,10 @@ export const getPastesByUsername = async (username) => {
     const userQuery = query(collection(db, "users"), where("username_lowercase", "==", username.toLowerCase()), limit(1));
     const userSnapshot = await getDocs(userQuery);
 
-    if (userSnapshot.empty) return { user: null, pastes: [] };
+    if (userSnapshot.empty) {
+        throw new Error("User not found.");
+    }
+    
     const user = userSnapshot.docs[0].data();
 
     const pastesQuery = query(

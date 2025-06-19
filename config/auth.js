@@ -1,43 +1,53 @@
 import { 
-  onAuthStateChanged, 
-  createUserWithEmailAndPassword, 
-  signInWithEmailAndPassword, 
-  signOut 
+    onAuthStateChanged, 
+    createUserWithEmailAndPassword, 
+    signInWithEmailAndPassword, 
+    signOut,
+    updateProfile
 } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-auth.js";
 import { auth, db } from './firebase-init.js';
-import { doc, getDocs, getDoc, setDoc, serverTimestamp, query, collection, where } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
+import { doc, getDoc, getDocs, setDoc, serverTimestamp, query, collection, where } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
 
-let currentUser = null;
+let currentUserCache = null;
+
+const updateUserUI = (user, userData) => {
+    document.body.classList.add('auth-state-known');
+    if (user) {
+        document.body.classList.add('signed-in');
+        document.body.classList.remove('signed-out');
+        
+        const avatarElements = document.querySelectorAll('.user-avatar-img');
+        const usernameElements = document.querySelectorAll('.user-username-text');
+        
+        avatarElements.forEach(el => el.src = userData.avatarUrl);
+        usernameElements.forEach(el => el.textContent = userData.username);
+
+    } else {
+        document.body.classList.add('signed-out');
+        document.body.classList.remove('signed-in');
+    }
+};
 
 onAuthStateChanged(auth, async (user) => {
-    const signedInElements = document.querySelectorAll('.when-signed-in');
-    const signedOutElements = document.querySelectorAll('.when-signed-out');
-    const userAvatarElements = document.querySelectorAll('.user-avatar');
-    const usernameElements = document.querySelectorAll('.user-username');
-
     if (user) {
-        const userDocRef = doc(db, "users", user.uid);
-        const userDocSnap = await getDoc(userDocRef);
-        currentUser = { uid: user.uid, email: user.email, ...userDocSnap.data() };
-        
-        signedInElements.forEach(el => el.style.display = 'block');
-        signedOutElements.forEach(el => el.style.display = 'none');
-        userAvatarElements.forEach(el => el.src = currentUser.avatarUrl);
-        usernameElements.forEach(el => el.textContent = currentUser.username);
-
-        const profileLink = document.getElementById('nav-profile-link');
-        if (profileLink) {
-            profileLink.href = `/profile.html?username=${currentUser.username}`;
+        if (currentUserCache && currentUserCache.uid === user.uid) {
+            updateUserUI(user, currentUserCache);
+        } else {
+            const userDocRef = doc(db, "users", user.uid);
+            const userDocSnap = await getDoc(userDocRef);
+            if (userDocSnap.exists()) {
+                currentUserCache = { uid: user.uid, email: user.email, ...userDocSnap.data() };
+                updateUserUI(user, currentUserCache);
+            }
         }
     } else {
-        currentUser = null;
-        signedInElements.forEach(el => el.style.display = 'none');
-        signedOutElements.forEach(el => el.style.display = 'block');
+        currentUserCache = null;
+        updateUserUI(null, null);
     }
 });
 
 export const getCurrentUser = () => {
-    return currentUser;
+    return currentUserCache;
 };
 
 export const handleSignUp = async (username, email, password) => {
@@ -51,16 +61,20 @@ export const handleSignUp = async (username, email, password) => {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     const user = userCredential.user;
 
-    await setDoc(doc(db, "users", user.uid), {
+    await updateProfile(user, { displayName: username });
+
+    const newUserProfile = {
         uid: user.uid,
         username: username,
         username_lowercase: username.toLowerCase(),
         email: email,
-        avatarUrl: `https://api.dicebear.com/8.x/initials/svg?seed=${username}`,
+        avatarUrl: `https://api.dicebear.com/8.x/initials/svg?seed=${encodeURIComponent(username)}`,
         about: "Hello, I'm a new Vioo-Code user!",
         createdAt: serverTimestamp()
-    });
-
+    };
+    
+    await setDoc(doc(db, "users", user.uid), newUserProfile);
+    currentUserCache = newUserProfile;
     return user;
 };
 
