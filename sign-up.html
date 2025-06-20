@@ -5,70 +5,67 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sign Up - Vioo-Code</title>
     <link rel="stylesheet" href="css/style.css">
-    <link rel="icon" href="https://api.dicebear.com/8.x/initials/svg?seed=VC&backgroundColor=0D1117,ffc300" type="image/svg+xml">
 </head>
 <body>
-    <header class="header">
-        <div class="container header-container">
-            <a href="/" class="logo">Vioo<span>-Code</span></a>
-        </div>
+
+    <header>
+        <nav class="container">
+            <div class="logo"><a href="/">Vioo<span>-Code</span></a></div>
+        </nav>
     </header>
 
-    <main class="main-content">
-        <div class="form-wrapper">
-            <div class="form-box">
-                <h1>Create Your Account</h1>
-                <form id="sign-up-form">
-                    <div class="form-group">
-                        <label for="username">Username</label>
-                        <input type="text" id="username" name="username" class="form-input" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="email">Email</label>
-                        <input type="email" id="email" name="email" class="form-input" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="password">Password (min. 6 characters)</label>
-                        <input type="password" id="password" name="password" class="form-input" required minlength="6">
-                    </div>
-                    <button type="submit" class="btn btn-primary" style="width: 100%;">Create Account</button>
-                    <p id="error-message" class="error-message"></p>
-                </form>
-                <div class="form-footer">
-                    <span>Already have an account? <a href="/sign-in.html">Sign In</a></span>
+    <main class="container">
+        <div class="form-container">
+            <h1>Create an Account</h1>
+            <div id="error-message" class="error-message"></div>
+            <form id="signup-form">
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" name="username" required>
                 </div>
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" name="email" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" required minlength="6">
+                </div>
+                <button type="submit" class="btn btn-primary">Sign Up</button>
+            </form>
+            <div class="auth-switch">
+                <p>Already have an account? <a href="/sign-in.html">Sign In</a></p>
             </div>
         </div>
     </main>
 
+    <footer>
+        <p>&copy; 2025 Vioo-Code. All Rights Reserved.</p>
+    </footer>
+
     <script type="module">
-        import { handleSignUp } from './config/auth.js';
+        import { signUp } from './config/auth.js';
 
-        const signUpForm = document.getElementById('sign-up-form');
-        const errorMessage = document.getElementById('error-message');
-        const submitBtn = signUpForm.querySelector('button[type="submit"]');
+        const signupForm = document.getElementById('signup-form');
+        const errorMessageDiv = document.getElementById('error-message');
 
-        signUpForm.addEventListener('submit', async (e) => {
+        signupForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            errorMessage.style.display = 'none';
-            submitBtn.disabled = true;
-            submitBtn.textContent = 'Creating...';
-            
-            const username = signUpForm.username.value.trim();
-            const email = signUpForm.email.value.trim();
-            const password = signUpForm.password.value;
+            errorMessageDiv.style.display = 'none';
+
+            const username = signupForm.username.value;
+            const email = signupForm.email.value;
+            const password = signupForm.password.value;
 
             try {
-                await handleSignUp(username, email, password);
-                window.location.href = '/index.html';
+                await signUp(username, email, password);
+                window.location.href = '/';
             } catch (error) {
-                errorMessage.textContent = error.message;
-                errorMessage.style.display = 'block';
-            } finally {
-                submitBtn.disabled = false;
-                submitBtn.textContent = 'Create Account';
+                errorMessageDiv.textContent = error.message;
+                errorMessageDiv.style.display = 'block';
             }
         });
     </script>
+
 </body>
 </html>

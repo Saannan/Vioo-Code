@@ -5,125 +5,129 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>User Profile - Vioo-Code</title>
     <link rel="stylesheet" href="css/style.css">
-    <link rel="icon" href="https://api.dicebear.com/8.x/initials/svg?seed=VC&backgroundColor=0D1117,ffc300" type="image/svg+xml">
 </head>
 <body>
-    <header class="header">
-        <div class="container header-container">
-            <a href="/" class="logo">Vioo<span>-Code</span></a>
-            <nav>
-                <ul class="nav-links" id="nav-menu">
-                    <li><a href="/explore.html">Explore</a></li>
-                    <li class="when-signed-in" style="display: none;"><button id="sign-out-btn-mobile" class="btn-logout">Logout</button></li>
-                    <li class="when-signed-out" style="display: none;"><a href="/sign-in.html">Sign In</a></li>
-                    <li class="when-signed-out" style="display: none;"><a href="/sign-up.html">Sign Up</a></li>
-                </ul>
-            </nav>
-            <div class="nav-auth">
-                <a href="/new-paste.html" class="btn btn-primary when-signed-in" style="display: none;">New Paste</a>
-                <div class="user-menu when-signed-in" style="display: none;">
-                    <a href="#" id="nav-profile-link"><img src="" alt="User Avatar" class="user-avatar"></a>
-                </div>
-                 <a href="/sign-in.html" class="btn btn-secondary when-signed-out">Sign In</a>
-                 <a href="/sign-up.html" class="btn btn-primary when-signed-out">Sign Up</a>
-                <button class="mobile-nav-toggle" id="mobile-nav-toggle">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" /></svg>
-                </button>
+
+    <header>
+        <nav class="container">
+            <div class="logo"><a href="/">Vioo<span>-Code</span></a></div>
+            <div class="nav-links">
+                <a href="/new-paste.html" class="when-signed-in">New Paste</a>
             </div>
-        </div>
+            <div class="nav-auth">
+                <div class="when-signed-out">
+                    <a href="/sign-in.html">Sign In</a>
+                    <a href="/sign-up.html" class="btn btn-primary">Sign Up</a>
+                </div>
+                <div class="when-signed-in nav-user-profile">
+                    <a href="#" id="nav-profile-link"></a>
+                    <img src="" alt="User Avatar" id="nav-user-avatar">
+                    <a href="#" id="sign-out-btn">Logout</a>
+                </div>
+            </div>
+        </nav>
     </header>
 
-    <main id="profile-page-container">
+    <main class="container">
+        <div id="loader">Loading profile...</div>
+        <div id="profile-container" style="display: none;">
+            <div class="profile-header">
+                <img id="profile-avatar" src="" alt="User Avatar">
+                <div class="profile-info">
+                    <h1 id="profile-username"></h1>
+                    <p id="profile-about"></p>
+                </div>
+            </div>
+
+            <h2>Public Pastes</h2>
+            <div id="paste-list" class="paste-list"></div>
+        </div>
+         <div id="not-found" style="display: none; text-align: center;">
+            <h1>404 - User Not Found</h1>
+        </div>
     </main>
 
+    <footer>
+        <p>&copy; 2025 Vioo-Code. All Rights Reserved.</p>
+    </footer>
+
     <script type="module">
-        import { handleSignOut } from './config/auth.js';
-        import { getPastesByUsername } from './config/api.js';
+        import { getUserProfileByUsername, getPastesByAuthor } from './config/api.js';
+        import { signOut } from './config/auth.js';
+        import './config/firebase-init.js';
 
-        const mobileNavToggle = document.getElementById('mobile-nav-toggle');
-        const navMenu = document.getElementById('nav-menu');
-        mobileNavToggle.addEventListener('click', () => navMenu.classList.toggle('active'));
-        document.getElementById('sign-out-btn-mobile')?.addEventListener('click', handleSignOut);
-        
-        const profileContainer = document.getElementById('profile-page-container');
-        const urlParams = new URLSearchParams(window.location.search);
-        const username = urlParams.get('username');
+        const loader = document.getElementById('loader');
+        const profileContainer = document.getElementById('profile-container');
+        const notFoundDiv = document.getElementById('not-found');
+        const pasteListContainer = document.getElementById('paste-list');
 
-        function renderSkeleton() {
-            profileContainer.innerHTML = `
-                <div class="profile-header">
-                    <div class="skeleton" style="width: 120px; height: 120px; border-radius: 50%;"></div>
-                    <div class="skeleton skeleton-text" style="width: 200px; height: 2.5rem; margin: 1.5rem auto 0.5rem auto;"></div>
-                    <div class="skeleton skeleton-text" style="width: 80%; max-width: 400px; margin: 0 auto;"></div>
-                </div>
-                <div class="container">
-                    <div class="paste-grid">
-                        ${Array(3).fill('<div class="skeleton skeleton-card"></div>').join('')}
-                    </div>
-                </div>
-            `;
-        }
+        const escapeHTML = str => str.replace(/[&<>"']/g, 
+            tag => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            }[tag]));
 
-        async function loadProfile() {
+        document.addEventListener('DOMContentLoaded', async () => {
+            const params = new URLSearchParams(window.location.search);
+            const username = params.get('username');
+
             if (!username) {
-                profileContainer.innerHTML = '<div class="container"><h1 class="page-heading">User not specified.</h1></div>';
+                loader.style.display = 'none';
+                notFoundDiv.style.display = 'block';
                 return;
             }
 
             try {
-                const { user, pastes } = await getPastesByUsername(username);
+                const userProfile = await getUserProfileByUsername(username);
 
-                if (!user) {
-                    profileContainer.innerHTML = '<div class="container"><h1 class="page-heading">User not found.</h1></div>';
+                if (!userProfile) {
+                    loader.style.display = 'none';
+                    notFoundDiv.style.display = 'block';
                     return;
                 }
                 
-                document.title = `${user.username}'s Profile - Vioo-Code`;
-                
-                let pastesHTML = '<p>This user has no public pastes yet.</p>';
-                if (pastes.length > 0) {
-                    pastesHTML = `
-                        <div class="paste-grid">
-                            ${pastes.map(paste => `
-                                <div class="paste-card">
-                                    <div class="paste-card-header">
-                                        <img src="${paste.authorAvatarUrl}" alt="${paste.authorUsername}">
-                                        <div class="paste-card-author">
-                                            <strong>${paste.authorUsername}</strong>
-                                        </div>
-                                        <span class="language-badge">${paste.language}</span>
-                                    </div>
-                                    <h3 class="paste-card-title">
-                                        <a href="/view-paste.html?id=${paste.pasteId}">${paste.title}</a>
-                                    </h3>
-                                    <div class="paste-card-footer">
-                                       Created on ${new Date(paste.createdAt?.toDate()).toLocaleDateString()}
-                                    </div>
-                                </div>
-                            `).join('')}
-                        </div>
-                    `;
-                }
+                document.title = `${userProfile.username}'s Profile - Vioo-Code`;
+                document.getElementById('profile-avatar').src = userProfile.avatarUrl;
+                document.getElementById('profile-username').textContent = userProfile.username;
+                document.getElementById('profile-about').textContent = userProfile.about;
 
-                profileContainer.innerHTML = `
-                    <header class="profile-header">
-                        <img src="${user.avatarUrl}" alt="${user.username}'s avatar" class="profile-avatar">
-                        <h1>${user.username}</h1>
-                        <p>${user.about}</p>
-                    </header>
-                    <div class="container">
-                        <h2 class="page-heading">${user.username}'s Public Pastes</h2>
-                        ${pastesHTML}
-                    </div>
-                `;
+                const pastes = await getPastesByAuthor(userProfile.uid);
+                
+                if (pastes.length === 0) {
+                    pasteListContainer.innerHTML = '<p>This user has no public pastes.</p>';
+                } else {
+                    pastes.forEach(paste => {
+                        const card = document.createElement('a');
+                        card.href = `/view-paste.html?id=${paste.pasteId}`;
+                        card.className = 'paste-card';
+                        card.innerHTML = `
+                            <h3>${escapeHTML(paste.title)}</h3>
+                            <p>${escapeHTML(paste.description) || 'No description'}</p>
+                            <div class="paste-meta">
+                                <span>${paste.language}</span>
+                                <span>•</span>
+                                <span>${new Date(paste.createdAt?.seconds * 1000).toLocaleString()}</span>
+                            </div>
+                        `;
+                        pasteListContainer.appendChild(card);
+                    });
+                }
+                
+                loader.style.display = 'none';
+                profileContainer.style.display = 'block';
 
             } catch (error) {
-                profileContainer.innerHTML = `<div class="container"><h1 class="page-heading" style="color: var(--danger);">Could not load profile.</h1><p>${error.message}</p></div>`;
+                console.error("Error loading profile:", error);
+                loader.textContent = 'Failed to load profile.';
             }
-        }
+        });
 
-        renderSkeleton();
-        loadProfile();
+        const signOutBtn = document.getElementById('sign-out-btn');
+        if (signOutBtn) {
+            signOutBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                signOut();
+            });
+        }
     </script>
 </body>
 </html>
