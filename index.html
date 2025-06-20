@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vioo-Code - Modern Code Sharing</title>
+    <title>Vioo-Code</title>
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -11,48 +11,41 @@
     <header>
         <nav class="container">
             <div class="logo"><a href="/">Vioo<span>-Code</span></a></div>
-            <div class="nav-links">
-                <a href="/new-paste.html" class="when-signed-in">New Paste</a>
-            </div>
             <div class="nav-auth">
                 <div class="when-signed-out">
-                    <a href="/sign-in.html">Sign In</a>
+                    <a href="/sign-in.html" class="btn btn-secondary">Sign In</a>
                     <a href="/sign-up.html" class="btn btn-primary">Sign Up</a>
                 </div>
-                <div class="when-signed-in nav-user-profile">
-                    <a href="#" id="nav-profile-link"></a>
-                    <img src="" alt="User Avatar" id="nav-user-avatar">
-                    <a href="#" id="sign-out-btn">Logout</a>
+                <div class="when-signed-in">
+                    <a href="/new-paste.html" class="btn btn-primary">New Paste</a>
+                    <a href="#" id="nav-profile-link">
+                        <img src="" alt="User Avatar" id="nav-user-avatar">
+                    </a>
                 </div>
             </div>
         </nav>
     </header>
 
     <main class="container">
-        <h1>Latest Public Pastes</h1>
+        <h1 class="page-title">Latest <span>Public</span> Pastes</h1>
         <div id="loader">Loading...</div>
-        <div id="paste-list" class="paste-list"></div>
+        <div id="paste-grid" class="paste-grid"></div>
     </main>
-
-    <footer>
-        <p>&copy; 2025 Vioo-Code. All Rights Reserved.</p>
-    </footer>
 
     <script type="module">
         import { getLatestPublicPastes } from './config/api.js';
-        import { signOut } from './config/auth.js';
-        import './config/firebase-init.js';
+        import './config/auth.js';
 
-        const pasteListContainer = document.getElementById('paste-list');
+        const pasteGridContainer = document.getElementById('paste-grid');
         const loader = document.getElementById('loader');
 
         document.addEventListener('DOMContentLoaded', async () => {
             try {
-                const pastes = await getLatestPublicPastes(15);
+                const pastes = await getLatestPublicPastes();
                 loader.style.display = 'none';
 
                 if (pastes.length === 0) {
-                    pasteListContainer.innerHTML = '<p>No public pastes available yet.</p>';
+                    pasteGridContainer.innerHTML = '<p>No public pastes available yet.</p>';
                     return;
                 }
 
@@ -60,19 +53,27 @@
                     const card = document.createElement('a');
                     card.href = `/view-paste.html?id=${paste.pasteId}`;
                     card.className = 'paste-card';
+                    
+                    const desc = escapeHTML(paste.description) || 'No description provided.';
+                    const truncatedDesc = desc.length > 100 ? desc.substring(0, 100) + '...' : desc;
+
                     card.innerHTML = `
-                        <h3>${escapeHTML(paste.title)}</h3>
-                        <p>${escapeHTML(paste.description) || 'No description'}</p>
-                        <div class="paste-meta">
-                            <img src="${paste.authorAvatarUrl}" alt="${paste.authorUsername}">
-                            <span>${paste.authorUsername}</span>
-                            <span>•</span>
-                            <span>${paste.language}</span>
-                            <span>•</span>
-                            <span>${new Date(paste.createdAt?.seconds * 1000).toLocaleString()}</span>
+                        <div class="paste-card-header">
+                            <h3>${escapeHTML(paste.title)}</h3>
+                            <span class="lang-tag">${escapeHTML(paste.language)}</span>
+                        </div>
+                        <div class="paste-card-body">
+                           <p>${truncatedDesc}</p>
+                        </div>
+                        <div class="paste-card-footer">
+                            <div class="author-info">
+                                <img src="${paste.authorAvatarUrl}" alt="${paste.authorUsername}">
+                                <span>${paste.authorUsername}</span>
+                            </div>
+                            <span>${new Date(paste.createdAt?.seconds * 1000).toLocaleDateString()}</span>
                         </div>
                     `;
-                    pasteListContainer.appendChild(card);
+                    pasteGridContainer.appendChild(card);
                 });
 
             } catch (error) {
@@ -84,15 +85,7 @@
         const escapeHTML = str => str.replace(/[&<>"']/g, 
             tag => ({
                 '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-            }[tag]));
-
-        const signOutBtn = document.getElementById('sign-out-btn');
-        if (signOutBtn) {
-            signOutBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                signOut();
-            });
-        }
+            }[tag] || tag));
     </script>
 </body>
 </html>

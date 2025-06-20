@@ -15,7 +15,7 @@
     </header>
 
     <main class="container">
-        <div class="form-container">
+        <div class="form-wrapper">
             <h1>Create an Account</h1>
             <div id="error-message" class="error-message"></div>
             <form id="signup-form">
@@ -31,17 +31,13 @@
                     <label for="password">Password</label>
                     <input type="password" id="password" name="password" required minlength="6">
                 </div>
-                <button type="submit" class="btn btn-primary">Sign Up</button>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">Sign Up</button>
             </form>
             <div class="auth-switch">
                 <p>Already have an account? <a href="/sign-in.html">Sign In</a></p>
             </div>
         </div>
     </main>
-
-    <footer>
-        <p>&copy; 2025 Vioo-Code. All Rights Reserved.</p>
-    </footer>
 
     <script type="module">
         import { signUp } from './config/auth.js';
@@ -52,6 +48,9 @@
         signupForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             errorMessageDiv.style.display = 'none';
+            const submitButton = e.target.querySelector('button');
+            submitButton.disabled = true;
+            submitButton.textContent = 'Creating Account...';
 
             const username = signupForm.username.value;
             const email = signupForm.email.value;
@@ -63,6 +62,8 @@
             } catch (error) {
                 errorMessageDiv.textContent = error.message;
                 errorMessageDiv.style.display = 'block';
+                submitButton.disabled = false;
+                submitButton.textContent = 'Sign Up';
             }
         });
     </script>

@@ -7,7 +7,6 @@
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-
     <header>
         <nav class="container">
             <div class="logo"><a href="/">Vioo<span>-Code</span></a></div>
@@ -15,8 +14,8 @@
     </header>
 
     <main class="container">
-        <div class="form-container">
-            <h1>Sign In</h1>
+        <div class="form-wrapper">
+            <h1>Welcome Back</h1>
             <div id="error-message" class="error-message"></div>
             <form id="signin-form">
                 <div class="form-group">
@@ -27,7 +26,7 @@
                     <label for="password">Password</label>
                     <input type="password" id="password" name="password" required>
                 </div>
-                <button type="submit" class="btn btn-primary">Sign In</button>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">Sign In</button>
             </form>
             <div class="auth-switch">
                 <p>Don't have an account? <a href="/sign-up.html">Sign Up</a></p>
@@ -35,10 +34,6 @@
         </div>
     </main>
     
-    <footer>
-        <p>&copy; 2025 Vioo-Code. All Rights Reserved.</p>
-    </footer>
-
     <script type="module">
         import { signIn } from './config/auth.js';
 
@@ -48,6 +43,9 @@
         signinForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             errorMessageDiv.style.display = 'none';
+            const submitButton = e.target.querySelector('button');
+            submitButton.disabled = true;
+            submitButton.textContent = 'Signing In...';
 
             const email = signinForm.email.value;
             const password = signinForm.password.value;
@@ -58,6 +56,8 @@
             } catch (error) {
                 errorMessageDiv.textContent = 'Invalid email or password.';
                 errorMessageDiv.style.display = 'block';
+                submitButton.disabled = false;
+                submitButton.textContent = 'Sign In';
             }
         });
     </script>
