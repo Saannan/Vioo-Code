@@ -22,16 +22,18 @@ export const createPaste = async (pasteData, rawContent) => {
 
     const user = auth.currentUser;
     const token = await user.getIdToken();
-    supabase.auth.setAuth(token);
-
     const filePath = `${user.uid}/${Date.now()}_${Math.random().toString(36).substring(2)}.txt`;
 
     const { error: uploadError } = await supabase.storage
         .from(supabaseConfig.bucket)
-        .upload(filePath, rawContent);
+        .upload(filePath, rawContent, {
+            cacheControl: '3600',
+            upsert: false,
+            headers: { Authorization: `Bearer ${token}` }
+        });
 
     if (uploadError) {
-        throw new Error(`Supabase error: ${uploadError.message}`);
+        throw new Error(`Supabase upload error: ${uploadError.message}`);
     }
 
     const userProfileDoc = await getDoc(doc(db, "users", user.uid));
@@ -78,7 +80,6 @@ export const getRawPasteContent = async (storagePath) => {
     return await data.text();
 };
 
-
 export const getLatestPublicPastes = async (count = 12) => {
     const q = query(
         collection(db, "pastes"), 
@@ -111,10 +112,13 @@ export const getPastesByAuthor = async (uid) => {
 export const deletePaste = async (pasteId, storagePath) => {
     if (!auth.currentUser) throw new Error("User not authenticated.");
     const token = await auth.currentUser.getIdToken();
-    supabase.auth.setAuth(token);
     
     await deleteDoc(doc(db, "pastes", pasteId));
-    await supabase.storage.from(supabaseConfig.bucket).remove([storagePath]);
+    await supabase.storage
+        .from(supabaseConfig.bucket)
+        .remove([storagePath], {
+            headers: { Authorization: `Bearer ${token}` }
+        });
 };
 
 export const addComment = async (pasteId, text, author) => {

@@ -9,6 +9,11 @@ import { auth, db } from './firebase-init.js';
 
 let currentUser = null;
 
+let authReadyResolver;
+const authReadyPromise = new Promise(resolve => {
+    authReadyResolver = resolve;
+});
+
 const fetchUserProfile = async (uid) => {
     const userDocRef = doc(db, 'users', uid);
     const userDocSnap = await getDoc(userDocRef);
@@ -21,29 +26,41 @@ onAuthStateChanged(auth, async (user) => {
     
     if (user) {
         currentUser = await fetchUserProfile(user.uid);
-        signedInElements.forEach(el => el.style.display = 'flex');
-        signedOutElements.forEach(el => el.style.display = 'none');
-
-        const profileLink = document.getElementById('nav-profile-link');
-        const userAvatar = document.getElementById('nav-user-avatar');
-        if (profileLink && currentUser) {
-            profileLink.href = `/profile.html?username=${currentUser.username}`;
+        signedInElements.forEach(el => {
+            el.style.display = 'flex';
+            el.classList.remove('hidden');
+        });
+        signedOutElements.forEach(el => {
+            el.style.display = 'none';
+            el.classList.add('hidden');
+        });
+        
+        const profileLinks = document.querySelectorAll('.nav-profile-link');
+        const userAvatars = document.querySelectorAll('.nav-user-avatar');
+        
+        if (currentUser) {
+            profileLinks.forEach(link => link.href = `/profile.html?username=${currentUser.username}`);
+            userAvatars.forEach(avatar => {
+                avatar.src = currentUser.avatarUrl;
+                avatar.alt = currentUser.username;
+            });
         }
-        if (userAvatar && currentUser) {
-            userAvatar.src = currentUser.avatarUrl;
-            userAvatar.alt = currentUser.username;
-        }
-
     } else {
         currentUser = null;
-        signedInElements.forEach(el => el.style.display = 'none');
-        signedOutElements.forEach(el => el.style.display = 'flex');
+        signedInElements.forEach(el => {
+            el.style.display = 'none';
+            el.classList.add('hidden');
+        });
+        signedOutElements.forEach(el => {
+            el.style.display = 'flex';
+            el.classList.remove('hidden');
+        });
     }
+    authReadyResolver(currentUser);
 });
 
-export const getCurrentUser = () => {
-    return currentUser;
-};
+export const onAuthReady = () => authReadyPromise;
+export const getCurrentUser = () => currentUser;
 
 export const signUp = async (username, email, password) => {
     const lowerCaseUsername = username.toLowerCase();
@@ -67,7 +84,6 @@ export const signUp = async (username, email, password) => {
         about: "Hello, I'm a new Vioo-Code user!",
         createdAt: serverTimestamp()
     });
-
     return user;
 };
 
