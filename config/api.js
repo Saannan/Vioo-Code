@@ -1,64 +1,68 @@
-import { db, rtdb, supabase, auth } from './firebase-init.js';
+import { db, supabase, rtdb, auth } from './firebase-init.js';
 import { 
     collection, 
     addDoc, 
-    getDoc, 
-    getDocs, 
     doc, 
+    getDoc, 
+    getDocs,
     query, 
     where, 
     orderBy, 
     limit, 
-    serverTimestamp, 
+    serverTimestamp,
     deleteDoc,
-    setDoc
+    updateDoc,
+    increment
 } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
-import { ref as dbRef, push, set, onValue, serverTimestamp as rtdbServerTimestamp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-database.js";
+import { ref as dbRef, push, set, onValue, serverTimestamp as rtdbServerTimestamp, query as rtdbQuery, orderByChild } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-database.js";
 import { supabaseConfig } from './config.js';
 
-export const createPaste = async (pasteData) => {
+export const createPaste = async (pasteData, rawContent) => {
     if (!auth.currentUser) throw new Error("User not authenticated.");
 
-    const userDocRef = doc(db, "users", auth.currentUser.uid);
-    const userDoc = await getDoc(userDocRef);
-    if (!userDoc.exists()) throw new Error("User profile not found.");
-    const userData = userDoc.data();
-    
-    const pasteDocRef = doc(collection(db, 'pastes'));
-    const pasteId = pasteDocRef.id;
-    const storagePath = `${auth.currentUser.uid}/${pasteId}.txt`;
+    const user = auth.currentUser;
+    const filePath = `${user.uid}/${Date.now()}_${Math.random().toString(36).substring(2)}.txt`;
 
     const { error: uploadError } = await supabase.storage
         .from(supabaseConfig.bucket)
-        .upload(storagePath, pasteData.content);
+        .upload(filePath, rawContent);
 
     if (uploadError) {
-        throw new Error(`Supabase upload failed: ${uploadError.message}`);
+        throw new Error(`Supabase upload error: ${uploadError.message}`);
     }
 
+    const userProfileDoc = await getDoc(doc(db, "users", user.uid));
+    if (!userProfileDoc.exists()) throw new Error("User profile not found.");
+    const userProfile = userProfileDoc.data();
+
     const newPaste = {
-        pasteId: pasteId,
         title: pasteData.title,
+        description: pasteData.description,
         language: pasteData.language,
         visibility: pasteData.visibility,
-        authorUid: auth.currentUser.uid,
-        authorUsername: userData.username,
-        authorAvatarUrl: userData.avatarUrl,
-        storagePath: storagePath,
+        authorUid: user.uid,
+        authorUsername: userProfile.username,
+        authorAvatarUrl: userProfile.avatarUrl,
+        storagePath: filePath,
         stats: { views: 0, comments: 0 },
         createdAt: serverTimestamp()
     };
 
-    await setDoc(pasteDocRef, newPaste);
-    return newPaste;
+    const docRef = await addDoc(collection(db, "pastes"), newPaste);
+    await updateDoc(docRef, { pasteId: docRef.id });
+
+    return docRef.id;
 };
 
 export const getPasteById = async (pasteId) => {
-    const pasteRef = doc(db, "pastes", pasteId);
+    const pasteRef = doc(db, 'pastes', pasteId);
     const pasteSnap = await getDoc(pasteRef);
+
     if (!pasteSnap.exists()) {
         return null;
     }
+    
+    await updateDoc(pasteRef, { "stats.views": increment(1) });
     return pasteSnap.data();
 };
 
@@ -67,13 +71,12 @@ export const getRawPasteContent = async (storagePath) => {
         .from(supabaseConfig.bucket)
         .download(storagePath);
     
-    if (error) {
-        throw new Error(`Failed to fetch raw content: ${error.message}`);
-    }
+    if (error) throw new Error(error.message);
     return await data.text();
 };
 
-export const getPublicPastes = async (count = 10) => {
+
+export const getLatestPublicPastes = async (count = 10) => {
     const q = query(
         collection(db, "pastes"), 
         where("visibility", "==", "public"), 
@@ -84,9 +87,17 @@ export const getPublicPastes = async (count = 10) => {
     return querySnapshot.docs.map(doc => doc.data());
 };
 
-export const getAllPublicPastes = async () => {
+export const getUserProfileByUsername = async (username) => {
+    const q = query(collection(db, "users"), where("username_lowercase", "==", username.toLowerCase()), limit(1));
+    const querySnapshot = await getDocs(q);
+    if (querySnapshot.empty) return null;
+    return querySnapshot.docs[0].data();
+};
+
+export const getPastesByAuthor = async (uid) => {
     const q = query(
         collection(db, "pastes"),
+        where("authorUid", "==", uid),
         where("visibility", "==", "public"),
         orderBy("createdAt", "desc")
     );
@@ -94,29 +105,14 @@ export const getAllPublicPastes = async () => {
     return querySnapshot.docs.map(doc => doc.data());
 };
 
-export const getPastesByUsername = async (username) => {
-    const userQuery = query(collection(db, "users"), where("username_lowercase", "==", username.toLowerCase()), limit(1));
-    const userSnapshot = await getDocs(userQuery);
-
-    if (userSnapshot.empty) return { user: null, pastes: [] };
-    const user = userSnapshot.docs[0].data();
-
-    const pastesQuery = query(
-        collection(db, "pastes"),
-        where("authorUid", "==", user.uid),
-        where("visibility", "==", "public"),
-        orderBy("createdAt", "desc")
-    );
-
-    const pastesSnapshot = await getDocs(pastesQuery);
-    const pastes = pastesSnapshot.docs.map(doc => doc.data());
-
-    return { user, pastes };
+export const deletePaste = async (pasteId, storagePath) => {
+    await deleteDoc(doc(db, "pastes", pasteId));
+    await supabase.storage.from(supabaseConfig.bucket).remove([storagePath]);
 };
 
-export const postComment = async (pasteId, text, author) => {
-    const commentRef = dbRef(rtdb, `comments/${pasteId}`);
-    const newCommentRef = push(commentRef);
+export const addComment = async (pasteId, text, author) => {
+    const commentsRef = dbRef(rtdb, `comments/${pasteId}`);
+    const newCommentRef = push(commentsRef);
     await set(newCommentRef, {
         text: text,
         authorUid: author.uid,
@@ -124,13 +120,17 @@ export const postComment = async (pasteId, text, author) => {
         authorAvatarUrl: author.avatarUrl,
         timestamp: rtdbServerTimestamp()
     });
+    const pasteDocRef = doc(db, 'pastes', pasteId);
+    await updateDoc(pasteDocRef, { "stats.comments": increment(1) });
 };
 
 export const listenForComments = (pasteId, callback) => {
-    const commentsRef = dbRef(rtdb, `comments/${pasteId}`);
-    onValue(commentsRef, (snapshot) => {
-        const data = snapshot.val();
-        const commentsArray = data ? Object.values(data).sort((a, b) => b.timestamp - a.timestamp) : [];
-        callback(commentsArray);
+    const commentsQuery = rtdbQuery(dbRef(rtdb, `comments/${pasteId}`), orderByChild('timestamp'));
+    return onValue(commentsQuery, (snapshot) => {
+        const comments = [];
+        snapshot.forEach((childSnapshot) => {
+            comments.push({ id: childSnapshot.key, ...childSnapshot.val() });
+        });
+        callback(comments.reverse());
     });
 };
