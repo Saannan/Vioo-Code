@@ -17,20 +17,21 @@ import {
 import { ref as dbRef, push, set, onValue, serverTimestamp as rtdbServerTimestamp, query as rtdbQuery, orderByChild } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-database.js";
 import { supabaseConfig } from './config.js';
 
-export const createPaste = async (pasteData, rawContent) => {
-    if (!auth.currentUser) throw new Error("User not authenticated.");
+const setSupabaseAuth = async () => {
+    if (!auth.currentUser) throw new Error("User not authenticated for Supabase operation.");
+    const token = await auth.currentUser.getIdToken();
+    supabase.global.headers['Authorization'] = `Bearer ${token}`;
+};
 
+export const createPaste = async (pasteData, rawContent) => {
+    await setSupabaseAuth();
     const user = auth.currentUser;
-    const token = await user.getIdToken();
+
     const filePath = `${user.uid}/${Date.now()}_${Math.random().toString(36).substring(2)}.txt`;
 
     const { error: uploadError } = await supabase.storage
         .from(supabaseConfig.bucket)
-        .upload(filePath, rawContent, {
-            cacheControl: '3600',
-            upsert: false,
-            headers: { Authorization: `Bearer ${token}` }
-        });
+        .upload(filePath, rawContent);
 
     if (uploadError) {
         throw new Error(`Supabase upload error: ${uploadError.message}`);
@@ -66,7 +67,7 @@ export const getPasteById = async (pasteId) => {
     if (!pasteSnap.exists()) {
         return null;
     }
-    
+
     await updateDoc(pasteRef, { "stats.views": increment(1) });
     return pasteSnap.data();
 };
@@ -75,7 +76,7 @@ export const getRawPasteContent = async (storagePath) => {
     const { data, error } = await supabase.storage
         .from(supabaseConfig.bucket)
         .download(storagePath);
-    
+
     if (error) throw new Error(error.message);
     return await data.text();
 };
@@ -110,15 +111,9 @@ export const getPastesByAuthor = async (uid) => {
 };
 
 export const deletePaste = async (pasteId, storagePath) => {
-    if (!auth.currentUser) throw new Error("User not authenticated.");
-    const token = await auth.currentUser.getIdToken();
-    
+    await setSupabaseAuth();
     await deleteDoc(doc(db, "pastes", pasteId));
-    await supabase.storage
-        .from(supabaseConfig.bucket)
-        .remove([storagePath], {
-            headers: { Authorization: `Bearer ${token}` }
-        });
+    await supabase.storage.from(supabaseConfig.bucket).remove([storagePath]);
 };
 
 export const addComment = async (pasteId, text, author) => {

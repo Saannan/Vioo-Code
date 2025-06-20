@@ -4,15 +4,10 @@ import {
     signOut as firebaseSignOut,
     onAuthStateChanged 
 } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-auth.js";
-import { doc, getDoc, getDocs, setDoc, serverTimestamp, query, collection, where } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
+import { doc, getDoc, setDoc, serverTimestamp, query, collection, where, getDocs } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
 import { auth, db } from './firebase-init.js';
 
 let currentUser = null;
-
-let authReadyResolver;
-const authReadyPromise = new Promise(resolve => {
-    authReadyResolver = resolve;
-});
 
 const fetchUserProfile = async (uid) => {
     const userDocRef = doc(db, 'users', uid);
@@ -25,42 +20,41 @@ onAuthStateChanged(auth, async (user) => {
     const signedOutElements = document.querySelectorAll('.when-signed-out');
     
     if (user) {
-        currentUser = await fetchUserProfile(user.uid);
-        signedInElements.forEach(el => {
-            el.style.display = 'flex';
-            el.classList.remove('hidden');
-        });
-        signedOutElements.forEach(el => {
-            el.style.display = 'none';
-            el.classList.add('hidden');
-        });
-        
-        const profileLinks = document.querySelectorAll('.nav-profile-link');
-        const userAvatars = document.querySelectorAll('.nav-user-avatar');
-        
-        if (currentUser) {
-            profileLinks.forEach(link => link.href = `/profile.html?username=${currentUser.username}`);
-            userAvatars.forEach(avatar => {
-                avatar.src = currentUser.avatarUrl;
-                avatar.alt = currentUser.username;
-            });
+        if (!currentUser || currentUser.uid !== user.uid) {
+            currentUser = await fetchUserProfile(user.uid);
         }
+        signedInElements.forEach(el => el.style.display = 'flex');
+        signedOutElements.forEach(el => el.style.display = 'none');
+
+        const profileLink = document.getElementById('nav-profile-link');
+        const userAvatar = document.getElementById('nav-user-avatar');
+        if (profileLink && currentUser) {
+            profileLink.href = `/profile.html?username=${currentUser.username}`;
+        }
+        if (userAvatar && currentUser) {
+            userAvatar.src = currentUser.avatarUrl;
+            userAvatar.alt = currentUser.username;
+        }
+
     } else {
         currentUser = null;
-        signedInElements.forEach(el => {
-            el.style.display = 'none';
-            el.classList.add('hidden');
-        });
-        signedOutElements.forEach(el => {
-            el.style.display = 'flex';
-            el.classList.remove('hidden');
-        });
+        signedInElements.forEach(el => el.style.display = 'none');
+        signedOutElements.forEach(el => el.style.display = 'flex');
     }
-    authReadyResolver(currentUser);
 });
 
-export const onAuthReady = () => authReadyPromise;
-export const getCurrentUser = () => currentUser;
+export const getCurrentUser = () => {
+    return currentUser;
+};
+
+export const isUserLoggedIn = () => {
+    return new Promise(resolve => {
+        const unsubscribe = onAuthStateChanged(auth, user => {
+            unsubscribe();
+            resolve(user);
+        });
+    });
+};
 
 export const signUp = async (username, email, password) => {
     const lowerCaseUsername = username.toLowerCase();
@@ -84,6 +78,7 @@ export const signUp = async (username, email, password) => {
         about: "Hello, I'm a new Vioo-Code user!",
         createdAt: serverTimestamp()
     });
+
     return user;
 };
 
