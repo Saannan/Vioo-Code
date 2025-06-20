@@ -1,142 +1,138 @@
-import { db, supabase, rtdb, auth } from './firebase-init.js';
-import { 
-    collection, 
-    addDoc, 
-    doc, 
-    getDoc, 
-    getDocs,
-    query, 
-    where, 
-    orderBy, 
-    limit, 
-    serverTimestamp,
-    deleteDoc,
-    updateDoc,
-    increment
-} from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
-import { ref as dbRef, push, set, onValue, serverTimestamp as rtdbServerTimestamp, query as rtdbQuery, orderByChild } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-database.js";
+import { supabase } from './supabase-init.js';
 import { supabaseConfig } from './config.js';
 
-const setSupabaseAuth = async () => {
-    if (!auth.currentUser) throw new Error("User not authenticated for Supabase operation.");
-    const token = await auth.currentUser.getIdToken();
-    supabase.global.headers['Authorization'] = `Bearer ${token}`;
+const generateUniqueId = () => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let result = '';
+    for (let i = 0; i < 10; i++) {
+        result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
 };
 
-export const createPaste = async (pasteData, rawContent) => {
-    await setSupabaseAuth();
-    const user = auth.currentUser;
+export const createPaste = async (pasteData, content) => {
+    const user = (await supabase.auth.getUser()).data.user;
+    if (!user) return { error: { message: 'User not authenticated' } };
 
-    const filePath = `${user.uid}/${Date.now()}_${Math.random().toString(36).substring(2)}.txt`;
+    const pasteId = generateUniqueId();
+    const filePath = `${user.id}/${pasteId}.txt`;
 
     const { error: uploadError } = await supabase.storage
         .from(supabaseConfig.bucket)
-        .upload(filePath, rawContent);
+        .upload(filePath, content);
 
-    if (uploadError) {
-        throw new Error(`Supabase upload error: ${uploadError.message}`);
-    }
+    if (uploadError) return { error: uploadError };
 
-    const userProfileDoc = await getDoc(doc(db, "users", user.uid));
-    if (!userProfileDoc.exists()) throw new Error("User profile not found.");
-    const userProfile = userProfileDoc.data();
+    const { data: profile } = await supabase.from('users').select('username, avatar_url').eq('id', user.id).single();
 
-    const newPaste = {
+    const { data, error } = await supabase.from('pastes').insert({
+        id: pasteId,
         title: pasteData.title,
         description: pasteData.description,
         language: pasteData.language,
         visibility: pasteData.visibility,
-        authorUid: user.uid,
-        authorUsername: userProfile.username,
-        authorAvatarUrl: userProfile.avatarUrl,
-        storagePath: filePath,
-        stats: { views: 0, comments: 0 },
-        createdAt: serverTimestamp()
-    };
+        author_id: user.id,
+        author_username: profile.username,
+        author_avatar_url: profile.avatar_url,
+        storage_path: filePath
+    }).select().single();
 
-    const docRef = await addDoc(collection(db, "pastes"), newPaste);
-    await updateDoc(docRef, { pasteId: docRef.id });
+    return { data, error, pasteId };
+};
 
-    return docRef.id;
+export const getLatestPublicPastes = async (limit = 10) => {
+    const { data, error } = await supabase
+        .from('pastes')
+        .select('*')
+        .eq('visibility', 'public')
+        .order('created_at', { ascending: false })
+        .limit(limit);
+    return { data, error };
 };
 
 export const getPasteById = async (pasteId) => {
-    const pasteRef = doc(db, 'pastes', pasteId);
-    const pasteSnap = await getDoc(pasteRef);
+    const { data, error } = await supabase
+        .from('pastes')
+        .select('*')
+        .eq('id', pasteId)
+        .single();
+    
+    if (error) return { error };
 
-    if (!pasteSnap.exists()) {
-        return null;
+    const { data: content, error: contentError } = await supabase
+        .storage
+        .from(supabaseConfig.bucket)
+        .download(data.storage_path);
+
+    if (contentError) return { error: contentError };
+
+    const textContent = await content.text();
+    return { data: { ...data, content: textContent } };
+};
+
+export const getCommentsByPasteId = async (pasteId) => {
+    const { data, error } = await supabase
+        .from('comments')
+        .select('*')
+        .eq('paste_id', pasteId)
+        .order('created_at', { ascending: true });
+    return { data, error };
+};
+
+export const createComment = async (pasteId, text) => {
+    const user = (await supabase.auth.getUser()).data.user;
+    if (!user) return { error: { message: 'User not authenticated' } };
+
+    const { data: profile } = await supabase.from('users').select('username, avatar_url').eq('id', user.id).single();
+    
+    const { data, error } = await supabase.from('comments').insert({
+        paste_id: pasteId,
+        text: text,
+        author_id: user.id,
+        author_username: profile.username,
+        author_avatar_url: profile.avatar_url
+    }).select().single();
+
+    if (!error) {
+        await supabase.rpc('increment_comment_count', { p_id: pasteId });
     }
 
-    await updateDoc(pasteRef, { "stats.views": increment(1) });
-    return pasteSnap.data();
+    return { data, error };
 };
 
-export const getRawPasteContent = async (storagePath) => {
-    const { data, error } = await supabase.storage
-        .from(supabaseConfig.bucket)
-        .download(storagePath);
-
-    if (error) throw new Error(error.message);
-    return await data.text();
+export const subscribeToComments = (pasteId, callback) => {
+    const subscription = supabase
+        .channel(`comments:${pasteId}`)
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'comments', filter: `paste_id=eq.${pasteId}` }, (payload) => {
+            callback(payload.new);
+        })
+        .subscribe();
+    return subscription;
 };
 
-export const getLatestPublicPastes = async (count = 12) => {
-    const q = query(
-        collection(db, "pastes"), 
-        where("visibility", "==", "public"), 
-        orderBy("createdAt", "desc"), 
-        limit(count)
-    );
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => doc.data());
+export const getProfileByUsername = async (username) => {
+    const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('username_lowercase', username.toLowerCase())
+        .single();
+    return { data, error };
 };
 
-export const getUserProfileByUsername = async (username) => {
-    const q = query(collection(db, "users"), where("username_lowercase", "==", username.toLowerCase()), limit(1));
-    const querySnapshot = await getDocs(q);
-    if (querySnapshot.empty) return null;
-    return querySnapshot.docs[0].data();
-};
-
-export const getPastesByAuthor = async (uid) => {
-    const q = query(
-        collection(db, "pastes"),
-        where("authorUid", "==", uid),
-        where("visibility", "==", "public"),
-        orderBy("createdAt", "desc")
-    );
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => doc.data());
+export const getPastesByAuthor = async (authorId) => {
+    const { data, error } = await supabase
+        .from('pastes')
+        .select('*')
+        .eq('author_id', authorId)
+        .eq('visibility', 'public')
+        .order('created_at', { ascending: false });
+    return { data, error };
 };
 
 export const deletePaste = async (pasteId, storagePath) => {
-    await setSupabaseAuth();
-    await deleteDoc(doc(db, "pastes", pasteId));
-    await supabase.storage.from(supabaseConfig.bucket).remove([storagePath]);
-};
+    const { error: dbError } = await supabase.from('pastes').delete().eq('id', pasteId);
+    if (dbError) return { error: dbError };
 
-export const addComment = async (pasteId, text, author) => {
-    const commentsRef = dbRef(rtdb, `comments/${pasteId}`);
-    const newCommentRef = push(commentsRef);
-    await set(newCommentRef, {
-        text: text,
-        authorUid: author.uid,
-        authorUsername: author.username,
-        authorAvatarUrl: author.avatarUrl,
-        timestamp: rtdbServerTimestamp()
-    });
-    const pasteDocRef = doc(db, 'pastes', pasteId);
-    await updateDoc(pasteDocRef, { "stats.comments": increment(1) });
-};
-
-export const listenForComments = (pasteId, callback) => {
-    const commentsQuery = rtdbQuery(dbRef(rtdb, `comments/${pasteId}`), orderByChild('timestamp'));
-    return onValue(commentsQuery, (snapshot) => {
-        const comments = [];
-        snapshot.forEach((childSnapshot) => {
-            comments.push({ id: childSnapshot.key, ...childSnapshot.val() });
-        });
-        callback(comments.reverse());
-    });
+    const { error: storageError } = await supabase.storage.from(supabaseConfig.bucket).remove([storagePath]);
+    return { error: storageError };
 };
