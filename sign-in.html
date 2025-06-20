@@ -7,14 +7,14 @@
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-    <header id="main-header">
+    <header>
         <nav class="container">
-            <div class="logo"><a href="/">Vioo<span>Code</span></a></div>
+            <div class="logo"><a href="/">Vioo<span>-Code</span></a></div>
         </nav>
     </header>
 
     <main class="container">
-        <div class="form-wrapper">
+        <div class="form-wrapper auth-form-wrapper">
             <h1>Welcome Back</h1>
             <div id="error-message" class="error-message"></div>
             <form id="signin-form">
@@ -26,7 +26,7 @@
                     <label for="password">Password</label>
                     <input type="password" id="password" name="password" required>
                 </div>
-                <button type="submit" class="btn btn-primary" style="width: 100%;">Sign In</button>
+                <button type="submit" class="btn btn-primary" style="width: 100%; background-color: var(--primary-accent); color: var(--text-dark);">Sign In</button>
             </form>
             <div class="auth-switch">
                 <p>Don't have an account? <a href="/sign-up.html">Sign Up</a></p>
@@ -36,16 +36,22 @@
     
     <script type="module">
         import { signIn } from './config/auth.js';
+
         const signinForm = document.getElementById('signin-form');
         const errorMessageDiv = document.getElementById('error-message');
+
         signinForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             errorMessageDiv.style.display = 'none';
             const submitButton = e.target.querySelector('button');
             submitButton.disabled = true;
             submitButton.textContent = 'Signing In...';
+
+            const email = signinForm.email.value;
+            const password = signinForm.password.value;
+
             try {
-                await signIn(signinForm.email.value, signinForm.password.value);
+                await signIn(email, password);
                 window.location.href = '/';
             } catch (error) {
                 errorMessageDiv.textContent = 'Invalid email or password.';

@@ -7,15 +7,16 @@
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-    <header id="main-header">
+
+    <header>
         <nav class="container">
-            <div class="logo"><a href="/">Vioo<span>Code</span></a></div>
+            <div class="logo"><a href="/">Vioo<span>-Code</span></a></div>
         </nav>
     </header>
 
     <main class="container">
-        <div class="form-wrapper">
-            <h1>Create Your Account</h1>
+        <div class="form-wrapper auth-form-wrapper">
+            <h1>Create an Account</h1>
             <div id="error-message" class="error-message"></div>
             <form id="signup-form">
                 <div class="form-group">
@@ -30,7 +31,7 @@
                     <label for="password">Password (min. 6 characters)</label>
                     <input type="password" id="password" name="password" required minlength="6">
                 </div>
-                <button type="submit" class="btn btn-primary" style="width: 100%;">Create Account</button>
+                <button type="submit" class="btn btn-primary" style="width: 100%; background-color: var(--primary-accent); color: var(--text-dark);">Sign Up</button>
             </form>
             <div class="auth-switch">
                 <p>Already have an account? <a href="/sign-in.html">Sign In</a></p>
@@ -40,22 +41,29 @@
 
     <script type="module">
         import { signUp } from './config/auth.js';
+
         const signupForm = document.getElementById('signup-form');
         const errorMessageDiv = document.getElementById('error-message');
+
         signupForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             errorMessageDiv.style.display = 'none';
             const submitButton = e.target.querySelector('button');
             submitButton.disabled = true;
             submitButton.textContent = 'Creating...';
+
+            const username = signupForm.username.value;
+            const email = signupForm.email.value;
+            const password = signupForm.password.value;
+
             try {
-                await signUp(signupForm.username.value, signupForm.email.value, signupForm.password.value);
+                await signUp(username, email, password);
                 window.location.href = '/';
             } catch (error) {
                 errorMessageDiv.textContent = error.message;
                 errorMessageDiv.style.display = 'block';
                 submitButton.disabled = false;
-                submitButton.textContent = 'Create Account';
+                submitButton.textContent = 'Sign Up';
             }
         });
     </script>

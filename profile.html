@@ -7,34 +7,27 @@
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-    <header id="main-header">
+
+    <header>
         <nav class="container">
-            <div class="logo"><a href="/">Vioo<span>Code</span></a></div>
-            <div class="nav-links">
-                <a href="/new-paste.html" class="btn btn-primary when-signed-in hidden">New Paste</a>
-            </div>
-            <div class="nav-actions">
-                <div class="when-signed-out hidden">
+            <div class="logo"><a href="/">Vioo<span>-Code</span></a></div>
+            <div class="nav-auth">
+                <div class="when-signed-out">
                     <a href="/sign-in.html" class="btn btn-secondary">Sign In</a>
-                    <a href="/sign-up.html" class="btn btn-primary">Sign Up</a>
                 </div>
-                <div class="when-signed-in hidden">
-                    <a href="#" class="nav-profile-link">
-                        <img src="" alt="User Avatar" class="nav-user-avatar">
+                <div class="when-signed-in">
+                    <a href="/new-paste.html" class="btn-icon" title="New Paste">+</a>
+                    <a href="#" id="nav-profile-link">
+                        <img src="" alt="User Avatar" id="nav-user-avatar">
                     </a>
                 </div>
-                <button class="hamburger" aria-label="Menu">
-                    <span></span>
-                    <span></span>
-                    <span></span>
-                </button>
             </div>
         </nav>
     </header>
 
     <main class="container">
         <div id="loader">Loading profile...</div>
-        <div id="profile-container" class="hidden">
+        <div id="profile-container" style="display: none;">
             <section class="profile-header">
                 <img id="profile-avatar" src="" alt="User Avatar">
                 <div class="profile-info">
@@ -43,7 +36,8 @@
                     <button id="logout-btn" class="btn btn-secondary">Logout</button>
                 </div>
             </section>
-            <h2 class="page-heading" style="margin: 0 0 1rem 0; font-size: 1.25rem;">Public Pastes</h2>
+
+            <h2 class="page-title" style="text-align: left; margin: 0 0 1.25rem 0;">Public Pastes</h2>
             <div id="paste-grid" class="paste-grid"></div>
         </div>
          <div id="not-found"><h1>404 - User Not Found</h1></div>
@@ -51,72 +45,70 @@
 
     <script type="module">
         import { getUserProfileByUsername, getPastesByAuthor } from './config/api.js';
-        import { signOut, onAuthReady } from './config/auth.js';
+        import { signOut, getCurrentUser } from './config/auth.js';
+        import { onAuthStateChanged, getAuth } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-auth.js";
 
-        const header = document.getElementById('main-header');
-        const hamburger = document.querySelector('.hamburger');
-        hamburger.addEventListener('click', () => header.classList.toggle('nav-open'));
-        
         const loader = document.getElementById('loader');
         const profileContainer = document.getElementById('profile-container');
         const notFoundDiv = document.getElementById('not-found');
         const pasteGridContainer = document.getElementById('paste-grid');
         const logoutBtn = document.getElementById('logout-btn');
 
-        const escapeHTML = str => str ? str.replace(/[&<>"']/g, tag => ({'&': '&amp;','<': '&lt;','>': '&gt;','"': '&quot;',"'": '&#39;'}[tag] || tag)) : '';
+        const escapeHTML = str => str ? str.replace(/[&<>"']/g, tag => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[tag] || tag)) : '';
 
-        const params = new URLSearchParams(window.location.search);
-        const username = params.get('username');
+        const loadProfilePage = async () => {
+            const params = new URLSearchParams(window.location.search);
+            const username = params.get('username');
 
-        if (!username) {
-            loader.style.display = 'none';
-            notFoundDiv.style.display = 'block';
-        } else {
-            onAuthReady().then(async (loggedInUser) => {
-                try {
-                    const userProfile = await getUserProfileByUsername(username);
-                    if (!userProfile) throw new Error("User not found");
-                    
-                    document.title = `${userProfile.username}'s Profile - Vioo-Code`;
-                    document.getElementById('profile-avatar').src = userProfile.avatarUrl;
-                    document.getElementById('profile-username').textContent = userProfile.username;
-                    document.getElementById('profile-about').textContent = userProfile.about;
+            if (!username) {
+                loader.style.display = 'none'; notFoundDiv.style.display = 'block'; return;
+            }
 
-                    if (loggedInUser && loggedInUser.uid === userProfile.uid) {
-                        logoutBtn.style.display = 'inline-block';
-                        logoutBtn.addEventListener('click', signOut);
-                    }
-                    
-                    const pastes = await getPastesByAuthor(userProfile.uid);
-                    if (pastes.length === 0) {
-                        pasteGridContainer.innerHTML = '<p>This user has no public pastes.</p>';
-                    } else {
-                        pastes.forEach(paste => {
-                             const card = document.createElement('a');
-                            card.href = `/view-paste.html?id=${paste.pasteId}`;
-                            card.className = 'paste-card';
-                            const desc = escapeHTML(paste.description) || 'No description provided.';
-                            card.innerHTML = `
-                                <div class="paste-card-header">
-                                    <h3>${escapeHTML(paste.title)}</h3>
-                                    <p>${desc}</p>
-                                </div>
-                                <div class="paste-card-footer">
-                                    <span class="author-info">Created: ${new Date(paste.createdAt?.seconds * 1000).toLocaleDateString()}</span>
-                                    <span class="lang-tag">${escapeHTML(paste.language)}</span>
-                                </div>`;
-                            pasteGridContainer.appendChild(card);
-                        });
-                    }
-                    
-                    loader.style.display = 'none';
-                    profileContainer.classList.remove('hidden');
-                } catch (error) {
-                    loader.style.display = 'none';
-                    notFoundDiv.style.display = 'block';
+            try {
+                const userProfile = await getUserProfileByUsername(username);
+                if (!userProfile) {
+                    loader.style.display = 'none'; notFoundDiv.style.display = 'block'; return;
                 }
-            });
-        }
+                
+                const loggedInUser = getCurrentUser();
+
+                document.title = `${userProfile.username}'s Profile - Vioo-Code`;
+                document.getElementById('profile-avatar').src = userProfile.avatarUrl;
+                document.getElementById('profile-username').textContent = userProfile.username;
+                document.getElementById('profile-about').textContent = userProfile.about;
+
+                if (loggedInUser && loggedInUser.uid === userProfile.uid) {
+                    logoutBtn.style.display = 'inline-block';
+                    logoutBtn.addEventListener('click', e => { e.preventDefault(); signOut(); });
+                }
+
+                const pastes = await getPastesByAuthor(userProfile.uid);
+                pasteGridContainer.innerHTML = '';
+                if (pastes.length === 0) {
+                    pasteGridContainer.innerHTML = '<p>This user has no public pastes.</p>';
+                } else {
+                    pastes.forEach(paste => {
+                        const card = document.createElement('a');
+                        card.href = `/view-paste.html?id=${paste.pasteId}`;
+                        card.className = 'paste-card';
+                        card.innerHTML = `<div class="paste-card-header"><h3>${escapeHTML(paste.title)}</h3><span class="lang-tag">${escapeHTML(paste.language)}</span></div><div class="paste-card-body"><p>${escapeHTML(paste.description) || 'No description'}</p></div>`;
+                        pasteGridContainer.appendChild(card);
+                    });
+                }
+                
+                loader.style.display = 'none';
+                profileContainer.style.display = 'block';
+
+            } catch (error) {
+                console.error("Error loading profile:", error);
+                loader.textContent = 'Failed to load profile.';
+            }
+        };
+
+        const auth = getAuth();
+        onAuthStateChanged(auth, (user) => {
+            loadProfilePage();
+        });
     </script>
 </body>
 </html>
