@@ -3,21 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sign In - Vioo-Code</title>
-    <link rel="stylesheet" href="css/style.css">
+    <title>Vioo-Code | Sign In</title>
+    <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
-    <header>
-        <nav class="container">
-            <div class="logo"><a href="/">Vioo<span>-Code</span></a></div>
-        </nav>
-    </header>
+    <nav>
+        <div class="container">
+            <a href="/" class="logo">Vioo-Code</a>
+        </div>
+    </nav>
 
-    <main class="container">
-        <div class="form-wrapper auth-form-wrapper">
-            <h1>Welcome Back</h1>
-            <div id="error-message" class="error-message"></div>
+    <main class="main-content">
+        <div class="form-container">
+            <h2>Sign In</h2>
             <form id="signin-form">
+                <div id="error-message" class="error-message" style="display: none;"></div>
                 <div class="form-group">
                     <label for="email">Email</label>
                     <input type="email" id="email" name="email" required>
@@ -26,38 +26,30 @@
                     <label for="password">Password</label>
                     <input type="password" id="password" name="password" required>
                 </div>
-                <button type="submit" class="btn btn-primary" style="width: 100%; background-color: var(--primary-accent); color: var(--text-dark);">Sign In</button>
+                <button type="submit" class="btn">Sign In</button>
             </form>
-            <div class="auth-switch">
-                <p>Don't have an account? <a href="/sign-up.html">Sign Up</a></p>
-            </div>
+            <p style="margin-top: 1rem;">Don't have an account? <a href="/sign-up.html">Sign Up</a></p>
         </div>
     </main>
-    
     <script type="module">
-        import { signIn } from './config/auth.js';
+        import { signIn } from '/config/auth.js';
 
-        const signinForm = document.getElementById('signin-form');
-        const errorMessageDiv = document.getElementById('error-message');
+        const form = document.getElementById('signin-form');
+        const errorMessage = document.getElementById('error-message');
 
-        signinForm.addEventListener('submit', async (e) => {
+        form.addEventListener('submit', async (e) => {
             e.preventDefault();
-            errorMessageDiv.style.display = 'none';
-            const submitButton = e.target.querySelector('button');
-            submitButton.disabled = true;
-            submitButton.textContent = 'Signing In...';
+            errorMessage.style.display = 'none';
+            const email = form.email.value;
+            const password = form.password.value;
 
-            const email = signinForm.email.value;
-            const password = signinForm.password.value;
+            const { data, error } = await signIn(email, password);
 
-            try {
-                await signIn(email, password);
+            if (error) {
+                errorMessage.textContent = error.message;
+                errorMessage.style.display = 'block';
+            } else {
                 window.location.href = '/';
-            } catch (error) {
-                errorMessageDiv.textContent = 'Invalid email or password.';
-                errorMessageDiv.style.display = 'block';
-                submitButton.disabled = false;
-                submitButton.textContent = 'Sign In';
             }
         });
     </script>
