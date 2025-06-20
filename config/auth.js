@@ -21,23 +21,23 @@ onAuthStateChanged(auth, async (user) => {
     
     if (user) {
         currentUser = await fetchUserProfile(user.uid);
-        signedInElements.forEach(el => el.style.display = 'block');
+        signedInElements.forEach(el => el.style.display = 'flex');
         signedOutElements.forEach(el => el.style.display = 'none');
 
         const profileLink = document.getElementById('nav-profile-link');
         const userAvatar = document.getElementById('nav-user-avatar');
         if (profileLink && currentUser) {
             profileLink.href = `/profile.html?username=${currentUser.username}`;
-            profileLink.textContent = currentUser.username;
         }
         if (userAvatar && currentUser) {
             userAvatar.src = currentUser.avatarUrl;
+            userAvatar.alt = currentUser.username;
         }
 
     } else {
         currentUser = null;
         signedInElements.forEach(el => el.style.display = 'none');
-        signedOutElements.forEach(el => el.style.display = 'block');
+        signedOutElements.forEach(el => el.style.display = 'flex');
     }
 });
 
