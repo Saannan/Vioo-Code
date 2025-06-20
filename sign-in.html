@@ -7,9 +7,9 @@
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-    <header>
+    <header id="main-header">
         <nav class="container">
-            <div class="logo"><a href="/">Vioo<span>-Code</span></a></div>
+            <div class="logo"><a href="/">Vioo<span>Code</span></a></div>
         </nav>
     </header>
 
@@ -36,22 +36,16 @@
     
     <script type="module">
         import { signIn } from './config/auth.js';
-
         const signinForm = document.getElementById('signin-form');
         const errorMessageDiv = document.getElementById('error-message');
-
         signinForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             errorMessageDiv.style.display = 'none';
             const submitButton = e.target.querySelector('button');
             submitButton.disabled = true;
             submitButton.textContent = 'Signing In...';
-
-            const email = signinForm.email.value;
-            const password = signinForm.password.value;
-
             try {
-                await signIn(email, password);
+                await signIn(signinForm.email.value, signinForm.password.value);
                 window.location.href = '/';
             } catch (error) {
                 errorMessageDiv.textContent = 'Invalid email or password.';

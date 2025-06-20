@@ -3,31 +3,42 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vioo-Code</title>
+    <title>Vioo-Code - Modern Code Sharing</title>
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 
-    <header>
+    <header id="main-header">
         <nav class="container">
-            <div class="logo"><a href="/">Vioo<span>-Code</span></a></div>
-            <div class="nav-auth">
-                <div class="when-signed-out">
+            <div class="logo"><a href="/">Vioo<span>Code</span></a></div>
+            <div class="nav-links">
+                <a href="/new-paste.html" class="btn btn-primary when-signed-in hidden">New Paste</a>
+            </div>
+            <div class="nav-actions">
+                <div class="when-signed-out hidden">
                     <a href="/sign-in.html" class="btn btn-secondary">Sign In</a>
                     <a href="/sign-up.html" class="btn btn-primary">Sign Up</a>
                 </div>
-                <div class="when-signed-in">
-                    <a href="/new-paste.html" class="btn btn-primary">New Paste</a>
-                    <a href="#" id="nav-profile-link">
-                        <img src="" alt="User Avatar" id="nav-user-avatar">
+                <div class="when-signed-in hidden">
+                    <a href="#" class="nav-profile-link">
+                        <img src="" alt="User Avatar" class="nav-user-avatar">
                     </a>
                 </div>
+                <button class="hamburger" aria-label="Menu">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </button>
             </div>
         </nav>
     </header>
 
     <main class="container">
-        <h1 class="page-title">Latest <span>Public</span> Pastes</h1>
+        <section class="page-heading">
+            <h1>Share Code Effortlessly</h1>
+            <p>A modern, fast, and secure platform for developers to share code snippets and text.</p>
+        </section>
+
         <div id="loader">Loading...</div>
         <div id="paste-grid" class="paste-grid"></div>
     </main>
@@ -36,6 +47,12 @@
         import { getLatestPublicPastes } from './config/api.js';
         import './config/auth.js';
 
+        const header = document.getElementById('main-header');
+        const hamburger = document.querySelector('.hamburger');
+        hamburger.addEventListener('click', () => {
+            header.classList.toggle('nav-open');
+        });
+
         const pasteGridContainer = document.getElementById('paste-grid');
         const loader = document.getElementById('loader');
 
@@ -43,7 +60,6 @@
             try {
                 const pastes = await getLatestPublicPastes();
                 loader.style.display = 'none';
-
                 if (pastes.length === 0) {
                     pasteGridContainer.innerHTML = '<p>No public pastes available yet.</p>';
                     return;
@@ -55,37 +71,28 @@
                     card.className = 'paste-card';
                     
                     const desc = escapeHTML(paste.description) || 'No description provided.';
-                    const truncatedDesc = desc.length > 100 ? desc.substring(0, 100) + '...' : desc;
 
                     card.innerHTML = `
                         <div class="paste-card-header">
                             <h3>${escapeHTML(paste.title)}</h3>
-                            <span class="lang-tag">${escapeHTML(paste.language)}</span>
-                        </div>
-                        <div class="paste-card-body">
-                           <p>${truncatedDesc}</p>
+                            <p>${desc}</p>
                         </div>
                         <div class="paste-card-footer">
                             <div class="author-info">
                                 <img src="${paste.authorAvatarUrl}" alt="${paste.authorUsername}">
                                 <span>${paste.authorUsername}</span>
                             </div>
-                            <span>${new Date(paste.createdAt?.seconds * 1000).toLocaleDateString()}</span>
+                            <span class="lang-tag">${escapeHTML(paste.language)}</span>
                         </div>
                     `;
                     pasteGridContainer.appendChild(card);
                 });
-
             } catch (error) {
-                console.error("Error fetching pastes:", error);
                 loader.textContent = "Failed to load pastes.";
             }
         });
         
-        const escapeHTML = str => str.replace(/[&<>"']/g, 
-            tag => ({
-                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-            }[tag] || tag));
+        const escapeHTML = str => str ? str.replace(/[&<>"']/g, tag => ({'&': '&amp;','<': '&lt;','>': '&gt;','"': '&quot;',"'": '&#39;'}[tag] || tag)) : '';
     </script>
 </body>
 </html>
