@@ -1,86 +1,107 @@
-import {
-    onAuthStateChanged,
-    createUserWithEmailAndPassword,
-    signInWithEmailAndPassword,
-    signOut
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { 
+    onAuthStateChanged, 
+    createUserWithEmailAndPassword, 
+    signInWithEmailAndPassword, 
+    signOut as firebaseSignOut 
+} from "https://www.gstatic.com/firebasejs/9.15.0/firebase-auth.js";
 import { auth, db } from './firebase-init.js';
-import { ref, get } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
-import { createUserProfile, checkUsernameExists } from './api.js';
+import { ref, set, get, query, orderByChild, equalTo } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-database.js";
+import { showPopup } from "../js/ui.js";
 
-let currentUser = null;
-
-onAuthStateChanged(auth, async (user) => {
-    const signedInElements = document.querySelectorAll('.when-signed-in');
-    const signedOutElements = document.querySelectorAll('.when-signed-out');
-    const profileLink = document.getElementById('nav-profile-link');
-    const dashboardLink = document.getElementById('nav-dashboard-link');
-    const fab = document.getElementById('fab-create-paste');
-
-    if (user) {
-        currentUser = user;
-        const userProfileRef = ref(db, `users/${user.uid}`);
-        const snapshot = await get(userProfileRef);
-        if (snapshot.exists()) {
-            const userData = snapshot.val();
-            if (profileLink) {
-                profileLink.href = `/profile.html?username=${userData.username}`;
+const signedInElements = document.querySelectorAll('.when-signed-in');
+const signedOutElements = document.querySelectorAll('.when-signed-out');
+const userDetailsElements = document.querySelectorAll('.user-details');
+const authStateReady = new Promise(resolve => {
+    onAuthStateChanged(auth, async user => {
+        if (user) {
+            const userProfileRef = ref(db, 'users/' + user.uid);
+            const snapshot = await get(userProfileRef);
+            if (snapshot.exists()) {
+                const userData = snapshot.val();
+                userDetailsElements.forEach(el => {
+                    const avatar = el.querySelector('.user-avatar');
+                    const username = el.querySelector('.user-username');
+                    if (avatar) avatar.src = userData.avatarUrl || `https://api.dicebear.com/8.x/initials/svg?seed=${userData.username}`;
+                    if (username) username.textContent = userData.username;
+                });
             }
+            signedInElements.forEach(el => el.style.display = 'block');
+            signedOutElements.forEach(el => el.style.display = 'none');
+        } else {
+            signedInElements.forEach(el => el.style.display = 'none');
+            signedOutElements.forEach(el => el.style.display = 'block');
         }
-        
-        signedInElements.forEach(el => el.style.display = 'block');
-        signedOutElements.forEach(el => el.style.display = 'none');
-        if (fab) fab.style.display = 'flex';
-
-    } else {
-        currentUser = null;
-        signedInElements.forEach(el => el.style.display = 'none');
-        signedOutElements.forEach(el => el.style.display = 'block');
-        if (fab) fab.style.display = 'none';
-    }
+        resolve(user);
+    });
 });
 
-export const handleSignUp = async (username, email, password) => {
+export const requireAuth = async (isAuthPage = false) => {
+    const user = await authStateReady;
+    const isProtectedPage = !isAuthPage && !['/sign-in.html', '/sign-up.html'].includes(window.location.pathname);
+
+    if (isProtectedPage && !user) {
+        window.location.href = '/sign-in.html';
+        return null;
+    }
+    if (isAuthPage && user) {
+        window.location.href = '/profile.html';
+        return null;
+    }
+    return user;
+};
+
+export const checkUsernameExists = async (username) => {
+    const usernameLower = username.toLowerCase();
+    const usersRef = ref(db, 'users');
+    const usernameQuery = query(usersRef, orderByChild('username_lowercase'), equalTo(usernameLower));
+    const snapshot = await get(usernameQuery);
+    return snapshot.exists();
+};
+
+export const signUp = async (username, email, password) => {
     try {
         const usernameExists = await checkUsernameExists(username);
         if (usernameExists) {
-            throw new Error("Username is already taken.");
+            showPopup('Error', 'Username is already taken. Please choose another one.');
+            return null;
         }
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
-        await createUserProfile(user.uid, username, email);
-        window.location.href = '/';
+        const userProfile = {
+            uid: user.uid,
+            username: username,
+            username_lowercase: username.toLowerCase(),
+            email: user.email,
+            avatarUrl: `https://api.dicebear.com/8.x/initials/svg?seed=${username}`,
+            about: "Hello, I'm a new user on Vioo-Code!",
+            createdAt: new Date().toISOString()
+        };
+        await set(ref(db, 'users/' + user.uid), userProfile);
+        return user;
     } catch (error) {
-        console.error("Sign up failed:", error);
-        alert(error.message);
+        showPopup('Sign-up Failed', error.message);
+        return null;
     }
 };
 
-export const handleSignIn = async (email, password) => {
+export const signIn = async (email, password) => {
     try {
         await signInWithEmailAndPassword(auth, email, password);
-        window.location.href = '/';
+        window.location.href = '/profile.html';
     } catch (error) {
-        console.error("Sign in failed:", error);
-        alert(error.message);
+        showPopup('Sign-in Failed', error.message);
     }
 };
 
-export const handleSignOut = async () => {
+export const signOut = async () => {
     try {
-        await signOut(auth);
+        await firebaseSignOut(auth);
         window.location.href = '/sign-in.html';
     } catch (error) {
-        console.error("Sign out failed:", error);
-        alert(error.message);
+        showPopup('Logout Failed', error.message);
     }
 };
 
 export const getCurrentUser = () => {
-    return new Promise((resolve) => {
-        const unsubscribe = onAuthStateChanged(auth, user => {
-            unsubscribe();
-            resolve(user);
-        });
-    });
+    return auth.currentUser;
 };

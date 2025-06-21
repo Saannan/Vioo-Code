@@ -1,178 +1,151 @@
-import { db, supabase } from './firebase-init.js';
-import { supabaseConfig } from './config.js';
-import {
-    ref,
-    set,
-    get,
-    query,
-    orderByChild,
-    equalTo,
-    push,
-    serverTimestamp,
+import { db, supabase, supabaseConfig, TIMESTAMP } from './firebase-init.js';
+import { 
+    ref, 
+    push, 
+    set, 
+    get, 
+    query, 
+    orderByChild, 
+    limitToLast, 
+    equalTo, 
     remove,
     onValue,
-    limitToLast,
     update
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
-
-export const checkUsernameExists = async (username) => {
-    const usernameLower = username.toLowerCase();
-    const usersRef = query(ref(db, 'users'), orderByChild('username_lowercase'), equalTo(usernameLower));
-    const snapshot = await get(usersRef);
-    return snapshot.exists();
-};
-
-export const createUserProfile = async (uid, username, email) => {
-    const userProfile = {
-        uid: uid,
-        username: username,
-        username_lowercase: username.toLowerCase(),
-        email: email,
-        avatarUrl: `https://api.dicebear.com/8.x/initials/svg?seed=${username}`,
-        about: "Hello, I'm a new Vioo-Code user!",
-        createdAt: serverTimestamp()
-    };
-    await set(ref(db, `users/${uid}`), userProfile);
-};
+} from "https://www.gstatic.com/firebasejs/9.15.0/firebase-database.js";
+import { getCurrentUser } from './auth.js';
 
 export const createPaste = async (pasteData) => {
-    const pasteContent = pasteData.content;
-    const newPasteRef = push(ref(db, 'pastes'));
-    const pasteId = newPasteRef.key;
-    const storagePath = `${pasteData.authorUid}/${pasteId}.txt`;
+    const user = getCurrentUser();
+    if (!user) throw new Error("User not authenticated.");
 
-    const { error: uploadError } = await supabase.storage
+    const userProfileRef = ref(db, `users/${user.uid}`);
+    const userSnapshot = await get(userProfileRef);
+    const userData = userSnapshot.val();
+
+    const pasteId = push(ref(db, 'pastes')).key;
+    const rawFileName = `${user.uid}-${pasteId}.txt`;
+    
+    const { data: uploadData, error: uploadError } = await supabase.storage
         .from(supabaseConfig.bucket)
-        .upload(storagePath, pasteContent);
+        .upload(rawFileName, pasteData.content);
 
     if (uploadError) {
-        throw new Error('Failed to upload paste content to storage.');
+        throw new Error('Supabase upload failed: ' + uploadError.message);
     }
-
-    const { data: publicUrlData } = supabase.storage
+    
+    const { data: urlData } = supabase.storage
         .from(supabaseConfig.bucket)
-        .getPublicUrl(storagePath);
+        .getPublicUrl(rawFileName);
 
-    const metadata = {
+    const fullPasteData = {
+        ...pasteData,
         pasteId: pasteId,
-        title: pasteData.title,
-        language: pasteData.language,
-        visibility: pasteData.visibility,
-        authorUid: pasteData.authorUid,
-        authorUsername: pasteData.authorUsername,
-        authorAvatarUrl: pasteData.authorAvatarUrl,
-        storagePath: publicUrlData.publicUrl,
+        authorUid: user.uid,
+        authorUsername: userData.username,
+        authorAvatarUrl: userData.avatarUrl,
+        storagePath: urlData.publicUrl,
+        rawFileName: rawFileName,
         stats: { views: 0, comments: 0 },
-        createdAt: serverTimestamp()
+        createdAt: TIMESTAMP
     };
 
-    await set(newPasteRef, metadata);
+    await set(ref(db, 'pastes/' + pasteId), fullPasteData);
     return pasteId;
 };
 
-export const getPasteById = async (pasteId) => {
+export const getPaste = async (pasteId) => {
     const pasteRef = ref(db, `pastes/${pasteId}`);
     const snapshot = await get(pasteRef);
     if (snapshot.exists()) {
         const pasteData = snapshot.val();
-        const viewsRef = ref(db, `pastes/${pasteId}/stats/views`);
-        const currentViews = (await get(viewsRef)).val() || 0;
-        await set(viewsRef, currentViews + 1);
-        pasteData.stats.views = currentViews + 1;
+        update(pasteRef, { 'stats/views': (pasteData.stats.views || 0) + 1 });
         return pasteData;
     }
     return null;
 };
 
-export const updatePaste = async (pasteId, updateData) => {
+export const getRawContent = async (storagePath) => {
+    const response = await fetch(storagePath);
+    if (!response.ok) throw new Error('Failed to fetch raw content.');
+    return await response.text();
+};
+
+
+export const getLatestPublicPastes = (limit = 10) => {
+    const pastesRef = ref(db, 'pastes');
+    const publicPastesQuery = query(pastesRef, orderByChild('visibility'), equalTo('public'), limitToLast(limit));
+    return get(publicPastesQuery);
+};
+
+export const getUserPublicPastes = (uid) => {
+    const pastesRef = ref(db, 'pastes');
+    const userPastesQuery = query(pastesRef, orderByChild('authorUid'), equalTo(uid));
+    return get(userPastesQuery);
+};
+
+
+export const deletePaste = async (pasteId) => {
+    const user = getCurrentUser();
+    if (!user) throw new Error("Authentication required.");
+
     const pasteRef = ref(db, `pastes/${pasteId}`);
-    await update(pasteRef, updateData);
+    const snapshot = await get(pasteRef);
+
+    if (snapshot.exists()) {
+        const pasteData = snapshot.val();
+        if (pasteData.authorUid !== user.uid) {
+            throw new Error("You are not authorized to delete this paste.");
+        }
+        await remove(pasteRef);
+        
+        const { error: deleteError } = await supabase.storage
+            .from(supabaseConfig.bucket)
+            .remove([pasteData.rawFileName]);
+            
+        if(deleteError) {
+            console.error("Supabase delete error:", deleteError.message);
+        }
+    }
 };
 
+export const postComment = async (pasteId, text) => {
+    const user = getCurrentUser();
+    if (!user) throw new Error("User not authenticated.");
 
-export const deletePaste = async (pasteId, authorUid) => {
-    const storagePath = `${authorUid}/${pasteId}.txt`;
-
-    const { error: storageError } = await supabase.storage
-        .from(supabaseConfig.bucket)
-        .remove([storagePath]);
-
-    if (storageError) {
-        console.error("Error deleting from storage:", storageError.message);
-    }
+    const userProfileRef = ref(db, `users/${user.uid}`);
+    const userSnapshot = await get(userProfileRef);
+    const userData = userSnapshot.val();
     
-    await remove(ref(db, `pastes/${pasteId}`));
-    await remove(ref(db, `comments/${pasteId}`));
-};
+    const pasteRef = ref(db, `pastes/${pasteId}`);
+    const pasteSnapshot = await get(pasteRef);
+    const pasteData = pasteSnapshot.val();
 
-export const getLatestPublicPastes = async (limit = 10) => {
-    const pastesRef = query(ref(db, 'pastes'), orderByChild('visibility'), equalTo('public'));
-    const snapshot = await get(query(pastesRef, limitToLast(limit)));
-    const pastes = [];
-    if (snapshot.exists()) {
-        snapshot.forEach(childSnapshot => {
-            pastes.push(childSnapshot.val());
-        });
-    }
-    return pastes.reverse();
-};
+    const commentRef = ref(db, `comments/${pasteId}`);
+    const newCommentRef = push(commentRef);
+    await set(newCommentRef, {
+        text: text,
+        authorUid: user.uid,
+        authorUsername: userData.username,
+        authorAvatarUrl: userData.avatarUrl,
+        timestamp: TIMESTAMP
+    });
 
-export const getUserPublicPastes = async (uid) => {
-    const pastesRef = query(ref(db, 'pastes'), orderByChild('authorUid'), equalTo(uid));
-    const snapshot = await get(pastesRef);
-    const pastes = [];
-    if(snapshot.exists()) {
-        snapshot.forEach(childSnapshot => {
-            const paste = childSnapshot.val();
-            if(paste.visibility === 'public') {
-                pastes.push(paste);
-            }
-        });
-    }
-    return pastes.reverse();
-};
-
-export const getUserAllPastes = async (uid) => {
-    const pastesRef = query(ref(db, 'pastes'), orderByChild('authorUid'), equalTo(uid));
-    const snapshot = await get(pastesRef);
-    const pastes = [];
-    if(snapshot.exists()) {
-        snapshot.forEach(childSnapshot => {
-            pastes.push(childSnapshot.val());
-        });
-    }
-    return pastes.reverse();
-}
-
-export const getUserProfileByUsername = async (username) => {
-    const usersRef = query(ref(db, 'users'), orderByChild('username_lowercase'), equalTo(username.toLowerCase()));
-    const snapshot = await get(usersRef);
-    if (snapshot.exists()) {
-        const userData = Object.values(snapshot.val())[0];
-        return userData;
-    }
-    return null;
-};
-
-export const addComment = async (pasteId, commentData) => {
-    const commentsRef = ref(db, `comments/${pasteId}`);
-    const newCommentRef = push(commentsRef);
-    await set(newCommentRef, { ...commentData, timestamp: serverTimestamp() });
-
-    const commentsCountRef = ref(db, `pastes/${pasteId}/stats/comments`);
-    const currentCount = (await get(commentsCountRef)).val() || 0;
-    await set(commentsCountRef, currentCount + 1);
+    const currentCommentCount = pasteData.stats.comments || 0;
+    await update(pasteRef, { 'stats/comments': currentCommentCount + 1 });
 };
 
 export const listenForComments = (pasteId, callback) => {
-    const commentsRef = query(ref(db, `comments/${pasteId}`), orderByChild('timestamp'));
-    return onValue(commentsRef, (snapshot) => {
-        const comments = [];
-        if (snapshot.exists()) {
-            snapshot.forEach(childSnapshot => {
-                comments.push(childSnapshot.val());
-            });
-        }
-        callback(comments);
-    });
+    const commentsRef = ref(db, `comments/${pasteId}`);
+    const commentsQuery = query(commentsRef, orderByChild('timestamp'));
+    return onValue(commentsQuery, callback);
 };
+
+export const getUserProfile = async (username) => {
+    const usersRef = ref(db, 'users');
+    const userQuery = query(usersRef, orderByChild('username_lowercase'), equalTo(username.toLowerCase()));
+    const snapshot = await get(userQuery);
+    if (snapshot.exists()) {
+        return Object.values(snapshot.val())[0];
+    }
+    return null;
+}
