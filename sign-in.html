@@ -4,42 +4,58 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sign In - Vioo-Code</title>
-    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
+
     <header>
-        <div class="container">
-            <a href="/" class="logo">Vioo<span>-Code</span></a>
-        </div>
+        <a href="/" class="logo">Vioo<span>-Code</span></a>
     </header>
-    <main class="container">
+
+    <main>
         <div class="form-container">
-            <h1>Sign In to Vioo-Code</h1>
+            <h1>Welcome Back</h1>
             <form id="signin-form">
                 <div class="form-group">
                     <label for="email">Email</label>
-                    <input type="email" id="email" required>
+                    <input type="email" id="email" class="form-control" required>
                 </div>
                 <div class="form-group">
                     <label for="password">Password</label>
-                    <input type="password" id="password" required>
+                    <input type="password" id="password" class="form-control" required>
                 </div>
-                <button type="submit" class="btn btn-primary">Sign In</button>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">Sign In</button>
             </form>
-            <div class="form-switch">
-                <p>Don't have an account? <a href="/sign-up.html">Sign Up</a></p>
-            </div>
+            <p class="auth-switch">Don't have an account? <a href="/sign-up.html">Sign Up</a></p>
         </div>
     </main>
-    <script type="module">
-        import { handleSignIn } from './config/auth.js';
 
-        const signinForm = document.getElementById('signin-form');
-        signinForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
-            handleSignIn(email, password);
+    <div id="popup-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="popup-title"></h2>
+                <button id="popup-close" class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p id="popup-message"></p>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/ui.js"></script>
+    <script type="module">
+        import { requireAuth, signIn } from './config/auth.js';
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            await requireAuth(true);
+
+            const signinForm = document.getElementById('signin-form');
+            signinForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const email = signinForm.email.value;
+                const password = signinForm.password.value;
+                signIn(email, password);
+            });
         });
     </script>
 </body>

@@ -4,163 +4,109 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>New Paste - Vioo-Code</title>
-    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
     <header>
-        <div class="container">
-            <a href="/" class="logo">Vioo<span>-Code</span></a>
-            <nav>
-                <ul>
-                    <li class="when-signed-in">
-                        <a id="nav-profile-link" href="#">My Profile</a>
-                    </li>
-                    <li class="when-signed-in">
-                        <a id="logout-button" href="#">Sign Out</a>
-                    </li>
-                </ul>
-            </nav>
-        </div>
+        <a href="/" class="logo">Vioo<span>-Code</span></a>
+        <nav>
+            <ul>
+                <li class="when-signed-in user-details" style="display: none;">
+                    <a href="/profile.html" class="user-menu">
+                        <img src="" alt="User Avatar" class="user-avatar">
+                        <span class="user-username"></span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
     </header>
 
     <main class="container">
-        <div class="form-container" style="max-width: 900px;">
-            <h1 id="page-title">Create New Paste</h1>
-            <form id="paste-form">
+        <div class="form-container" style="max-width: 1000px; margin: 2rem auto;">
+            <h1>Create New Paste</h1>
+            <form id="new-paste-form">
                 <div class="form-group">
                     <label for="title">Title</label>
-                    <input type="text" id="title" required>
+                    <input type="text" id="title" class="form-control" required>
                 </div>
                 <div class="form-group">
-                    <label for="content">Code / Text Content</label>
-                    <textarea id="content" rows="20" required></textarea>
+                    <label for="language">Language</label>
+                    <input type="text" id="language" class="form-control" list="languages" placeholder="e.g., javascript, python, html" required>
+                    <datalist id="languages">
+                        <option value="javascript"></option>
+                        <option value="python"></option>
+                        <option value="html"></option>
+                        <option value="css"></option>
+                        <option value="java"></option>
+                        <option value="csharp"></option>
+                        <option value="cpp"></option>
+                        <option value="php"></option>
+                        <option value="sql"></option>
+                        <option value="json"></option>
+                        <option value="markup"></option>
+                    </datalist>
                 </div>
                 <div class="form-group">
-                    <label for="language">Language (for syntax highlighting)</label>
-                    <input type="text" id="language" placeholder="e.g., javascript, python, html" value="plaintext">
+                    <label for="content">Code / Text</label>
+                    <textarea id="content" class="form-control" required></textarea>
                 </div>
                 <div class="form-group">
                     <label for="visibility">Visibility</label>
-                    <select id="visibility">
-                        <option value="public">Public - Visible to everyone</option>
-                        <option value="unlisted">Unlisted - Accessible via link</option>
-                        <option value="private">Private - Only you can see</option>
+                    <select id="visibility" class="form-control">
+                        <option value="public">Public</option>
+                        <option value="unlisted">Unlisted</option>
+                        <option value="private">Private</option>
                     </select>
                 </div>
-                <button type="submit" class="btn btn-primary" id="submit-btn">Create Paste</button>
+                <button type="submit" id="submit-btn" class="btn btn-primary">Create Paste</button>
             </form>
         </div>
     </main>
 
+    <div id="popup-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="popup-title"></h2>
+                <button id="popup-close" class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p id="popup-message"></p>
+                <div id="loader" class="loading-spinner hidden"></div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="/js/ui.js"></script>
     <script type="module">
-        import { handleSignOut, getCurrentUser } from './config/auth.js';
-        import { createPaste, getPasteById, updatePaste } from './config/api.js';
-        import { ref, get } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
-        import { db } from './config/firebase-init.js';
-
-        const logoutButton = document.getElementById('logout-button');
-        logoutButton.addEventListener('click', e => {
-            e.preventDefault();
-            handleSignOut();
-        });
-
-        const pasteForm = document.getElementById('paste-form');
-        const submitBtn = document.getElementById('submit-btn');
-        const pageTitle = document.getElementById('page-title');
-        const titleInput = document.getElementById('title');
-        const contentInput = document.getElementById('content');
-        const languageInput = document.getElementById('language');
-        const visibilityInput = document.getElementById('visibility');
-
-        let editMode = false;
-        let pasteId = null;
+        import { requireAuth } from './config/auth.js';
+        import { createPaste } from './config/api.js';
 
         document.addEventListener('DOMContentLoaded', async () => {
-            const user = await getCurrentUser();
-            if (!user) {
-                window.location.href = '/sign-in.html';
-                return;
-            }
-
-            const params = new URLSearchParams(window.location.search);
-            pasteId = params.get('edit');
-
-            if (pasteId) {
-                editMode = true;
-                pageTitle.textContent = 'Edit Paste';
-                submitBtn.textContent = 'Save Changes';
-                const pasteData = await getPasteById(pasteId);
-                if (pasteData && pasteData.authorUid === user.uid) {
-                    titleInput.value = pasteData.title;
-                    languageInput.value = pasteData.language;
-                    visibilityInput.value = pasteData.visibility;
-                    
-                    try {
-                        const response = await fetch(pasteData.storagePath);
-                        if (response.ok) {
-                            const text = await response.text();
-                            contentInput.value = text;
-                        } else {
-                            throw new Error('Failed to fetch paste content.');
-                        }
-                    } catch(e) {
-                        contentInput.value = 'Error loading content.';
-                        contentInput.disabled = true;
-                    }
-
-                } else {
-                    window.location.href = '/';
-                }
-            }
-        });
-
-        pasteForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            submitBtn.disabled = true;
-            submitBtn.textContent = 'Processing...';
-            const user = await getCurrentUser();
-            if (!user) {
-                alert('You must be signed in.');
-                return;
-            }
-
-            try {
-                if (editMode) {
-                     const updatedData = {
-                        title: titleInput.value,
-                        language: languageInput.value,
-                        visibility: visibilityInput.value
-                    };
-                    await updatePaste(pasteId, updatedData);
-                    alert('Paste updated successfully!');
+            await requireAuth();
+            const form = document.getElementById('new-paste-form');
+            const submitBtn = document.getElementById('submit-btn');
+            
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Creating...';
+                
+                const pasteData = {
+                    title: form.title.value,
+                    language: form.language.value.toLowerCase() || 'text',
+                    content: form.content.value,
+                    visibility: form.visibility.value,
+                };
+                
+                try {
+                    const pasteId = await createPaste(pasteData);
                     window.location.href = `/view-paste.html?id=${pasteId}`;
-
-                } else {
-                    const userProfileRef = ref(db, `users/${user.uid}`);
-                    const snapshot = await get(userProfileRef);
-                    if (!snapshot.exists()) {
-                        throw new Error("User profile not found.");
-                    }
-                    const userData = snapshot.val();
-                    
-                    const pasteData = {
-                        title: titleInput.value,
-                        content: contentInput.value,
-                        language: languageInput.value.toLowerCase() || 'plaintext',
-                        visibility: visibilityInput.value,
-                        authorUid: user.uid,
-                        authorUsername: userData.username,
-                        authorAvatarUrl: userData.avatarUrl
-                    };
-                    
-                    const newPasteId = await createPaste(pasteData);
-                    window.location.href = `/view-paste.html?id=${newPasteId}`;
+                } catch (error) {
+                    showPopup('Error', 'Failed to create paste: ' + error.message);
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Create Paste';
                 }
-            } catch (error) {
-                alert(`Error: ${error.message}`);
-                submitBtn.disabled = false;
-                submitBtn.textContent = editMode ? 'Save Changes' : 'Create Paste';
-            }
+            });
         });
     </script>
 </body>
