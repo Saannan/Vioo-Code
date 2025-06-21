@@ -1,64 +1,71 @@
 import { supabase } from './supabase-init.js';
+import { checkUsernameExists, getUserProfileByAuthId } from './api.js';
 
 const signedInElements = document.querySelectorAll('.when-signed-in');
 const signedOutElements = document.querySelectorAll('.when-signed-out');
-const userProfileLink = document.getElementById('user-profile-link');
-const userAvatarNav = document.getElementById('user-avatar-nav');
+const profileLink = document.getElementById('profile-link');
+const userProfileNav = document.getElementById('user-profile-nav');
 
-const setupUI = (user) => {
-    if (user) {
+async function handleAuthStateChange(event, session) {
+    if (session && session.user) {
+        const profile = await getUserProfileByAuthId(session.user.id);
         signedInElements.forEach(el => el.style.display = 'block');
         signedOutElements.forEach(el => el.style.display = 'none');
-        if (userProfileLink) {
-            userProfileLink.href = `/profile.html?user=${user.user_metadata.username}`;
+        if (profileLink && profile) {
+            profileLink.href = `/profile.html?user=${profile.username}`;
         }
-        if (userAvatarNav && user.user_metadata.avatar_url) {
-            userAvatarNav.src = user.user_metadata.avatar_url;
+        if (userProfileNav && profile) {
+            userProfileNav.innerHTML = `
+                <img src="${profile.avatar_url}" alt="${profile.username}" class="nav-avatar">
+                <span>${profile.username}</span>
+            `;
         }
     } else {
         signedInElements.forEach(el => el.style.display = 'none');
         signedOutElements.forEach(el => el.style.display = 'block');
     }
-};
+}
 
-supabase.auth.onAuthStateChange((event, session) => {
-    setupUI(session?.user);
-});
+supabase.auth.onAuthStateChange(handleAuthStateChange);
 
-const getCurrentUser = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    return user;
-};
+export async function signUp(username, email, password) {
+    const usernameLower = username.toLowerCase();
+    const exists = await checkUsernameExists(usernameLower);
+    if (exists) {
+        throw new Error('Username already taken.');
+    }
 
-const signUp = async (username, email, password) => {
     const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
             data: {
-                username: username,
-                avatar_url: `https://fllyfxfiwajcmkqpvabz.supabase.co/storage/v1/object/public/vioo-code/defaults/default_avatar.png`
+                username: username
             }
         }
     });
-    return { data, error };
-};
 
-const signIn = async (email, password) => {
+    if (error) throw error;
+    return data;
+}
+
+export async function signIn(email, password) {
     const { data, error } = await supabase.auth.signInWithPassword({
         email,
-        password,
+        password
     });
-    return { data, error };
-};
+    if (error) throw error;
+    return data;
+}
 
-const signOut = async () => {
+export async function signOut() {
     const { error } = await supabase.auth.signOut();
-    if (!error) {
-        window.location.href = '/';
-    } else {
-        console.error('Sign out error:', error);
-    }
-};
+    if (error) throw error;
+    window.location.href = '/index.html';
+}
 
-export { getCurrentUser, signUp, signIn, signOut, setupUI };
+export function getCurrentUser() {
+    return supabase.auth.getUser();
+}
+
+handleAuthStateChange();
