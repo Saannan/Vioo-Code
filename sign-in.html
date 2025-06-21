@@ -3,21 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vioo-Code | Sign In</title>
-    <link rel="stylesheet" href="/css/style.css">
+    <title>Sign In - Vioo-Code</title>
+    <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-    <nav>
-        <div class="container">
-            <a href="/" class="logo">Vioo-Code</a>
-        </div>
+    <nav class="navbar">
+        <div class="logo"><a href="/index.html">Vioo-Code</a></div>
     </nav>
-
-    <main class="main-content">
+    <main class="container">
         <div class="form-container">
-            <h2>Sign In</h2>
+            <h1>Sign In to Vioo-Code</h1>
+            <div id="error-message"></div>
             <form id="signin-form">
-                <div id="error-message" class="error-message" style="display: none;"></div>
                 <div class="form-group">
                     <label for="email">Email</label>
                     <input type="email" id="email" name="email" required>
@@ -28,28 +25,30 @@
                 </div>
                 <button type="submit" class="btn">Sign In</button>
             </form>
-            <p style="margin-top: 1rem;">Don't have an account? <a href="/sign-up.html">Sign Up</a></p>
+            <p class="form-text">
+                Don't have an account? <a href="/sign-up.html">Sign Up</a>
+            </p>
         </div>
     </main>
     <script type="module">
-        import { signIn } from '/config/auth.js';
+        import { signIn } from './config/auth.js';
 
-        const form = document.getElementById('signin-form');
+        const signinForm = document.getElementById('signin-form');
         const errorMessage = document.getElementById('error-message');
 
-        form.addEventListener('submit', async (e) => {
+        signinForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             errorMessage.style.display = 'none';
-            const email = form.email.value;
-            const password = form.password.value;
 
-            const { data, error } = await signIn(email, password);
+            const email = signinForm.email.value;
+            const password = signinForm.password.value;
 
-            if (error) {
+            try {
+                await signIn(email, password);
+                window.location.href = '/profile.html';
+            } catch (error) {
                 errorMessage.textContent = error.message;
                 errorMessage.style.display = 'block';
-            } else {
-                window.location.href = '/';
             }
         });
     </script>

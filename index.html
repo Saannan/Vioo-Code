@@ -3,68 +3,79 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vioo-Code | Home</title>
-    <link rel="stylesheet" href="/css/style.css">
+    <title>Vioo-Code - Modern Code Sharing</title>
+    <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-    <nav>
-        <div class="container">
-            <a href="/" class="logo">Vioo-Code</a>
-            <ul>
-                <li class="when-signed-out"><a href="/sign-in.html">Sign In</a></li>
-                <li class="when-signed-out"><a href="/sign-up.html" class="btn">Sign Up</a></li>
-                <li class="when-signed-in"><a href="/new-paste.html" class="btn">New Paste</a></li>
-                <li class="when-signed-in">
-                    <a href="#" id="user-profile-link">
-                        <img src="" alt="User Avatar" class="user-avatar" id="user-avatar-nav">
-                    </a>
-                </li>
-            </ul>
+
+    <nav class="navbar">
+        <div class="logo"><a href="/index.html">Vioo-Code</a></div>
+        <div class="nav-links">
+            <a href="/index.html">Explore</a>
+            <a href="/profile.html" class="when-signed-in" id="profile-link">
+                <span id="user-profile-nav">Profile</span>
+            </a>
+        </div>
+        <div class="auth-links">
+            <a href="/sign-in.html" class="when-signed-out">Sign In</a>
+            <a href="/sign-up.html" class="when-signed-out btn-like">Sign Up</a>
         </div>
     </nav>
 
-    <main class="main-content">
-        <div class="container">
-            <h1>Latest Public Pastes</h1>
-            <div id="paste-list"></div>
+    <main class="container">
+        <h1>Latest Public Pastes</h1>
+        <div class="paste-list" id="paste-list">
         </div>
     </main>
 
+    <a href="/new-paste.html" class="fab">+</a>
+
     <script type="module">
-        import { setupUI } from '/config/auth.js';
-        import { getLatestPublicPastes } from '/config/api.js';
+        import './config/auth.js';
+        import { getPublicPastes } from './config/api.js';
 
-        const pasteListContainer = document.getElementById('paste-list');
+        const pasteList = document.getElementById('paste-list');
 
-        const renderPaste = (paste) => {
-            const pasteEl = document.createElement('div');
-            pasteEl.className = 'paste-list-item';
-            pasteEl.innerHTML = `
-                <h3><a href="/view-paste.html?id=${paste.id}">${paste.title}</a></h3>
-                <div class="meta">
-                    <img src="${paste.author_avatar_url}" alt="${paste.author_username}">
-                    <span><a href="/profile.html?user=${paste.author_username}">${paste.author_username}</a></span>
-                    <span>Language: ${paste.language}</span>
-                    <span>${new Date(paste.created_at).toLocaleString()}</span>
+        function renderPaste(paste) {
+            const pasteCard = document.createElement('div');
+            pasteCard.className = 'paste-card';
+
+            const formattedDate = new Date(paste.created_at).toLocaleDateString('en-US', {
+                year: 'numeric', month: 'short', day: 'numeric'
+            });
+
+            pasteCard.innerHTML = `
+                <div class="paste-card-header">
+                    <div>
+                        <a href="/view-paste.html?id=${paste.id}" class="paste-card-title">${paste.title}</a>
+                        <div class="paste-card-meta">
+                            <img src="${paste.author_avatar_url}" alt="${paste.author_username}">
+                            <a href="/profile.html?user=${paste.author_username}">${paste.author_username}</a> •
+                            <span>${formattedDate}</span>
+                        </div>
+                    </div>
+                    <span class="paste-card-lang">${paste.language}</span>
                 </div>
             `;
-            pasteListContainer.appendChild(pasteEl);
-        };
+            pasteList.appendChild(pasteCard);
+        }
 
-        document.addEventListener('DOMContentLoaded', async () => {
-            const { data: user } = await supabase.auth.getUser();
-            setupUI(user);
+        async function loadPastes() {
+            try {
+                const pastes = await getPublicPastes();
+                pasteList.innerHTML = '';
+                if (pastes.length === 0) {
+                    pasteList.innerHTML = '<p>No public pastes yet. Be the first to create one!</p>';
+                } else {
+                    pastes.forEach(renderPaste);
+                }
+            } catch (error) {
+                console.error('Error loading pastes:', error);
+                pasteList.innerHTML = '<p>Could not load pastes. Please try again later.</p>';
+            }
+        }
 
-            const { data: pastes, error } = await getLatestPublicPastes();
-            if (error) {
-                pasteListContainer.innerHTML = `<p class="error-message">Could not fetch pastes.</p>`;
-            } else if (pastes.length === 0) {
-                 pasteListContainer.innerHTML = `<p>No public pastes yet. Be the first to create one!</p>`;
-            }
-            else {
-                pastes.forEach(renderPaste);
-            }
-        });
+        loadPastes();
     </script>
 </body>
 </html>
