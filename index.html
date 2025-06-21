@@ -7,75 +7,93 @@
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-
-    <nav class="navbar">
-        <div class="logo"><a href="/index.html">Vioo-Code</a></div>
-        <div class="nav-links">
-            <a href="/index.html">Explore</a>
-            <a href="/profile.html" class="when-signed-in" id="profile-link">
-                <span id="user-profile-nav">Profile</span>
-            </a>
+    <header>
+        <div class="container">
+            <a href="/" class="logo">Vioo<span>-Code</span></a>
+            <nav>
+                <ul>
+                    <li class="when-signed-in">
+                        <a id="nav-dashboard-link" href="/profile.html">My Dashboard</a>
+                    </li>
+                    <li class="when-signed-in">
+                        <a id="logout-button" href="#">Sign Out</a>
+                    </li>
+                    <li class="when-signed-out">
+                        <a href="/sign-in.html" class="btn btn-primary">Sign In</a>
+                    </li>
+                    <li class="when-signed-out">
+                        <a href="/sign-up.html" class="btn btn-secondary">Sign Up</a>
+                    </li>
+                </ul>
+            </nav>
         </div>
-        <div class="auth-links">
-            <a href="/sign-in.html" class="when-signed-out">Sign In</a>
-            <a href="/sign-up.html" class="when-signed-out btn-like">Sign Up</a>
-        </div>
-    </nav>
+    </header>
 
     <main class="container">
-        <h1>Latest Public Pastes</h1>
-        <div class="paste-list" id="paste-list">
+        <h1 class="page-title">Latest Public Pastes</h1>
+        <div id="paste-grid" class="paste-grid">
+        </div>
+        <div id="empty-state" class="empty-state" style="display: none;">
+            <h2>No public pastes yet.</h2>
+            <p>Be the first one to create a public paste!</p>
         </div>
     </main>
 
-    <a href="/new-paste.html" class="fab">+</a>
+    <a href="/new-paste.html" id="fab-create-paste" class="fab when-signed-in">+</a>
 
     <script type="module">
-        import './config/auth.js';
-        import { getPublicPastes } from './config/api.js';
+        import { handleSignOut, getCurrentUser } from './config/auth.js';
+        import { getLatestPublicPastes } from './config/api.js';
 
-        const pasteList = document.getElementById('paste-list');
+        const logoutButton = document.getElementById('logout-button');
+        logoutButton.addEventListener('click', (e) => {
+            e.preventDefault();
+            handleSignOut();
+        });
 
-        function renderPaste(paste) {
-            const pasteCard = document.createElement('div');
-            pasteCard.className = 'paste-card';
-
-            const formattedDate = new Date(paste.created_at).toLocaleDateString('en-US', {
-                year: 'numeric', month: 'short', day: 'numeric'
-            });
-
-            pasteCard.innerHTML = `
-                <div class="paste-card-header">
-                    <div>
-                        <a href="/view-paste.html?id=${paste.id}" class="paste-card-title">${paste.title}</a>
+        const pasteGrid = document.getElementById('paste-grid');
+        const emptyState = document.getElementById('empty-state');
+        
+        const renderPastes = (pastes) => {
+            if (pastes.length === 0) {
+                pasteGrid.style.display = 'none';
+                emptyState.style.display = 'block';
+                return;
+            }
+            
+            pasteGrid.innerHTML = pastes.map(paste => `
+                <a href="/view-paste.html?id=${paste.pasteId}" class="paste-card">
+                    <div class="paste-card-header">
+                        <h3>${escapeHTML(paste.title)}</h3>
                         <div class="paste-card-meta">
-                            <img src="${paste.author_avatar_url}" alt="${paste.author_username}">
-                            <a href="/profile.html?user=${paste.author_username}">${paste.author_username}</a> •
-                            <span>${formattedDate}</span>
+                            <img src="${paste.authorAvatarUrl}" alt="${escapeHTML(paste.authorUsername)}">
+                            <span>${escapeHTML(paste.authorUsername)}</span>
                         </div>
                     </div>
-                    <span class="paste-card-lang">${paste.language}</span>
-                </div>
-            `;
-            pasteList.appendChild(pasteCard);
+                    <div class="paste-card-footer">
+                        <span class="language-badge">${escapeHTML(paste.language)}</span>
+                        <span>${new Date(paste.createdAt).toLocaleDateString()}</span>
+                    </div>
+                </a>
+            `).join('');
+        };
+        
+        function escapeHTML(str) {
+            return str.replace(/[&<>"']/g, function(match) {
+                return {
+                    '&': '&amp;',
+                    '<': '&lt;',
+                    '>': '&gt;',
+                    '"': '&quot;',
+                    "'": '&#39;'
+                }[match];
+            });
         }
 
-        async function loadPastes() {
-            try {
-                const pastes = await getPublicPastes();
-                pasteList.innerHTML = '';
-                if (pastes.length === 0) {
-                    pasteList.innerHTML = '<p>No public pastes yet. Be the first to create one!</p>';
-                } else {
-                    pastes.forEach(renderPaste);
-                }
-            } catch (error) {
-                console.error('Error loading pastes:', error);
-                pasteList.innerHTML = '<p>Could not load pastes. Please try again later.</p>';
-            }
-        }
-
-        loadPastes();
+        document.addEventListener('DOMContentLoaded', async () => {
+            const pastes = await getLatestPublicPastes();
+            renderPastes(pastes);
+        });
     </script>
 </body>
 </html>

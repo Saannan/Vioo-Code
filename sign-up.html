@@ -7,55 +7,46 @@
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-    <nav class="navbar">
-        <div class="logo"><a href="/index.html">Vioo-Code</a></div>
-    </nav>
+    <header>
+        <div class="container">
+            <a href="/" class="logo">Vioo<span>-Code</span></a>
+        </div>
+    </header>
+
     <main class="container">
         <div class="form-container">
             <h1>Create Your Account</h1>
-            <div id="error-message"></div>
             <form id="signup-form">
                 <div class="form-group">
                     <label for="username">Username</label>
-                    <input type="text" id="username" name="username" required>
+                    <input type="text" id="username" required minlength="3" maxlength="20">
                 </div>
                 <div class="form-group">
                     <label for="email">Email</label>
-                    <input type="email" id="email" name="email" required>
+                    <input type="email" id="email" required>
                 </div>
                 <div class="form-group">
                     <label for="password">Password</label>
-                    <input type="password" id="password" name="password" required minlength="6">
+                    <input type="password" id="password" required minlength="6">
                 </div>
-                <button type="submit" class="btn">Sign Up</button>
+                <button type="submit" class="btn btn-primary">Sign Up</button>
             </form>
-            <p class="form-text">
-                Already have an account? <a href="/sign-in.html">Sign In</a>
-            </p>
+            <div class="form-switch">
+                <p>Already have an account? <a href="/sign-in.html">Sign In</a></p>
+            </div>
         </div>
     </main>
+
     <script type="module">
-        import { signUp } from './config/auth.js';
+        import { handleSignUp } from './config/auth.js';
 
         const signupForm = document.getElementById('signup-form');
-        const errorMessage = document.getElementById('error-message');
-
-        signupForm.addEventListener('submit', async (e) => {
+        signupForm.addEventListener('submit', (e) => {
             e.preventDefault();
-            errorMessage.style.display = 'none';
-
-            const username = signupForm.username.value;
-            const email = signupForm.email.value;
-            const password = signupForm.password.value;
-
-            try {
-                await signUp(username, email, password);
-                alert('Sign up successful! Please check your email to confirm your account.');
-                window.location.href = '/sign-in.html';
-            } catch (error) {
-                errorMessage.textContent = error.message;
-                errorMessage.style.display = 'block';
-            }
+            const username = document.getElementById('username').value;
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            handleSignUp(username, email, password);
         });
     </script>
 </body>
