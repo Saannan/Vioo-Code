@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>V-CODE - Account</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://kit.fontawesome.com/a2d9d5c59d.js" crossorigin="anonymous"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Source+Code+Pro&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="container">
+     <div class="header">
+       <h1>Account <span style="color: #f59e0b;">Information</span></h1>
+       <div class="nav-links">
+         <a href="index.html" title="Home"><i class="fas fa-home"></i>&nbsp;&nbsp;Home</a>
+         <button onclick="logout()" title="Logout"><i class="fas fa-sign-out-alt"></i>&nbsp;&nbsp;Logout</button>
+       </div>
+     </div>
+    <div id="account-info" class="account-info">
+        <div class="avatar-container">
+            <img id="avatarImage" src="https://files.catbox.moe/nwvkbt.png" alt="Avatar">
+        </div>
+        <p id="usernameDisplay"></p>
+        <div id="aboutDisplay" contentEditable="false" placeholder="Tulis sesuatu tentang dirimu..."></div>
+        <div class="info-container">
+            <p><span class="label">Email:</span> <span id="emailDisplay" class="data">Loading...</span></p>
+            <p><span class="label">ID:</span> <span id="idDisplay" class="data">Loading...</span></p>
+        </div>
+    </div>
+  </div>
+  <div id="notif">Notification Message</div>
+  <script type="module" src="js/api.js"></script>
+</body>
+</html>

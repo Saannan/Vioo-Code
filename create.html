@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>V-CODE - Create</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://kit.fontawesome.com/a2d9d5c59d.js" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="container">
+     <div class="header">
+       <h1>Create <span style="color: #f59e0b;">New Paste</span></h1>
+       <div class="nav-links">
+         <a href="index.html" title="Home"><i class="fas fa-home"></i>&nbsp;&nbsp;Home</a>
+         <a href="account.html" title="My Account"><i class="fas fa-user"></i>&nbsp;&nbsp;Account</a>
+       </div>
+     </div>
+    <form id="createPasteForm">
+      <div>
+        <label for="pasteTitle">Title</label>
+        <input type="text" id="pasteTitle" placeholder="Paste title" maxlength="30" required>
+      </div>
+      <div>
+        <label for="pasteAuthor">Author (optional)</label>
+        <input type="text" id="pasteAuthor" placeholder="Paste author name" maxlength="16">
+      </div>
+      <div>
+        <label for="pasteDescription">Description</label>
+        <input type="text" id="pasteDescription" placeholder="Paste description" maxlength="150" required>
+      </div>
+      <div>
+        <label for="pasteTags">Tags</label>
+        <input type="text" id="pasteTags" placeholder="Comma-separated (e.g., maker, tools)" required>
+      </div>
+      <div style="margin-bottom: 1.5rem;"> <label for="pasteLanguage">Language</label>
+        <select id="pasteLanguage" required>
+          <option value="" disabled selected>Select language</option>
+          <option value="javascript">JavaScript</option>
+          <option value="python">Python</option>
+          <option value="java">Java</option>
+          <option value="html">HTML</option>
+          <option value="css">CSS</option>
+          <option value="json">JSON</option>
+          <option value="php">PHP</option>
+          <option value="typescript">TypeScript</option>
+          <option value="text">Plain Text</option>
+          </select>
+      </div>
+      <div>
+        <label for="pasteContent">Content</label>
+        <textarea id="pasteContent" placeholder="Enter your text or code here..." required></textarea>
+      </div>
+      <button type="submit" id="submitButton" class="btn-submit">
+         <i class="fas fa-save"></i> <span style="color: #000;">&nbsp;&nbsp;Save Paste</span>
+      </button>
+    </form>
+  </div>
+  <div id="notif">Notification Message</div>
+  <script type="module" src="js/api.js"></script>
+</body>
+</html>

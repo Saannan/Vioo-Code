@@ -1,62 +1,25 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sign In - Vioo-Code</title>
-    <link rel="stylesheet" href="/css/style.css">
+  <meta charset="UTF-8">
+  <title>V-CODE - Sign In</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://kit.fontawesome.com/a2d9d5c59d.js" crossorigin="anonymous"></script>
+  <link rel="stylesheet" href="css/style.css">
 </head>
-<body>
-
-    <header>
-        <a href="/" class="logo">Vioo<span>-Code</span></a>
-    </header>
-
-    <main>
-        <div class="form-container">
-            <h1>Welcome Back</h1>
-            <form id="signin-form">
-                <div class="form-group">
-                    <label for="email">Email</label>
-                    <input type="email" id="email" class="form-control" required>
-                </div>
-                <div class="form-group">
-                    <label for="password">Password</label>
-                    <input type="password" id="password" class="form-control" required>
-                </div>
-                <button type="submit" class="btn btn-primary" style="width: 100%;">Sign In</button>
-            </form>
-            <p class="auth-switch">Don't have an account? <a href="/sign-up.html">Sign Up</a></p>
-        </div>
-    </main>
-
-    <div id="popup-modal" class="modal-overlay">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 id="popup-title"></h2>
-                <button id="popup-close" class="modal-close">&times;</button>
-            </div>
-            <div class="modal-body">
-                <p id="popup-message"></p>
-            </div>
-        </div>
+<body class="bg-neutral-900 text-white flex items-center justify-center min-h-screen">
+  <div class="bg-neutral-800 p-8 rounded-2xl shadow-xl w-[380px]">
+    <h1 class="text-2xl font-bold text-center mb-6">Welcome to <span class="text-amber-500">V-CODE</span></h1>
+    <div id="notif" class="mb-4 text-sm hidden px-4 py-2 rounded-lg text-white"></div>
+    <input type="email" id="email" placeholder="Email" class="w-full p-2 mb-3 bg-neutral-700 rounded-md outline-none">
+    <div class="relative mb-3">
+      <input type="password" id="password" placeholder="Password" class="w-full p-2 bg-neutral-700 rounded-md pr-10 outline-none">
     </div>
-
-    <script src="/js/ui.js"></script>
-    <script type="module">
-        import { requireAuth, signIn } from './config/auth.js';
-
-        document.addEventListener('DOMContentLoaded', async () => {
-            await requireAuth(true);
-
-            const signinForm = document.getElementById('signin-form');
-            signinForm.addEventListener('submit', (e) => {
-                e.preventDefault();
-                const email = signinForm.email.value;
-                const password = signinForm.password.value;
-                signIn(email, password);
-            });
-        });
-    </script>
+    <button onclick="login()" class="w-full bg-amber-500 text-black font-semibold py-2 rounded-md hover:bg-amber-400 transition">Sign in</button>
+    <p class="text-center mt-4 text-sm text-gray-300">
+      Don't have an account? <a href="sign-up.html" class="text-amber-500 hover:underline">Sign up</a>
+    </p>
+  </div>
+  <script type="module" src="js/api.js"></script>
 </body>
 </html>
