@@ -1,71 +1,86 @@
-import { supabase } from './supabase-init.js';
-import { checkUsernameExists, getUserProfileByAuthId } from './api.js';
+import {
+    onAuthStateChanged,
+    createUserWithEmailAndPassword,
+    signInWithEmailAndPassword,
+    signOut
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { auth, db } from './firebase-init.js';
+import { ref, get } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+import { createUserProfile, checkUsernameExists } from './api.js';
 
-const signedInElements = document.querySelectorAll('.when-signed-in');
-const signedOutElements = document.querySelectorAll('.when-signed-out');
-const profileLink = document.getElementById('profile-link');
-const userProfileNav = document.getElementById('user-profile-nav');
+let currentUser = null;
 
-async function handleAuthStateChange(event, session) {
-    if (session && session.user) {
-        const profile = await getUserProfileByAuthId(session.user.id);
-        signedInElements.forEach(el => el.style.display = 'block');
-        signedOutElements.forEach(el => el.style.display = 'none');
-        if (profileLink && profile) {
-            profileLink.href = `/profile.html?user=${profile.username}`;
-        }
-        if (userProfileNav && profile) {
-            userProfileNav.innerHTML = `
-                <img src="${profile.avatar_url}" alt="${profile.username}" class="nav-avatar">
-                <span>${profile.username}</span>
-            `;
-        }
-    } else {
-        signedInElements.forEach(el => el.style.display = 'none');
-        signedOutElements.forEach(el => el.style.display = 'block');
-    }
-}
+onAuthStateChanged(auth, async (user) => {
+    const signedInElements = document.querySelectorAll('.when-signed-in');
+    const signedOutElements = document.querySelectorAll('.when-signed-out');
+    const profileLink = document.getElementById('nav-profile-link');
+    const dashboardLink = document.getElementById('nav-dashboard-link');
+    const fab = document.getElementById('fab-create-paste');
 
-supabase.auth.onAuthStateChange(handleAuthStateChange);
-
-export async function signUp(username, email, password) {
-    const usernameLower = username.toLowerCase();
-    const exists = await checkUsernameExists(usernameLower);
-    if (exists) {
-        throw new Error('Username already taken.');
-    }
-
-    const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-            data: {
-                username: username
+    if (user) {
+        currentUser = user;
+        const userProfileRef = ref(db, `users/${user.uid}`);
+        const snapshot = await get(userProfileRef);
+        if (snapshot.exists()) {
+            const userData = snapshot.val();
+            if (profileLink) {
+                profileLink.href = `/profile.html?username=${userData.username}`;
             }
         }
+        
+        signedInElements.forEach(el => el.style.display = 'block');
+        signedOutElements.forEach(el => el.style.display = 'none');
+        if (fab) fab.style.display = 'flex';
+
+    } else {
+        currentUser = null;
+        signedInElements.forEach(el => el.style.display = 'none');
+        signedOutElements.forEach(el => el.style.display = 'block');
+        if (fab) fab.style.display = 'none';
+    }
+});
+
+export const handleSignUp = async (username, email, password) => {
+    try {
+        const usernameExists = await checkUsernameExists(username);
+        if (usernameExists) {
+            throw new Error("Username is already taken.");
+        }
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+        await createUserProfile(user.uid, username, email);
+        window.location.href = '/';
+    } catch (error) {
+        console.error("Sign up failed:", error);
+        alert(error.message);
+    }
+};
+
+export const handleSignIn = async (email, password) => {
+    try {
+        await signInWithEmailAndPassword(auth, email, password);
+        window.location.href = '/';
+    } catch (error) {
+        console.error("Sign in failed:", error);
+        alert(error.message);
+    }
+};
+
+export const handleSignOut = async () => {
+    try {
+        await signOut(auth);
+        window.location.href = '/sign-in.html';
+    } catch (error) {
+        console.error("Sign out failed:", error);
+        alert(error.message);
+    }
+};
+
+export const getCurrentUser = () => {
+    return new Promise((resolve) => {
+        const unsubscribe = onAuthStateChanged(auth, user => {
+            unsubscribe();
+            resolve(user);
+        });
     });
-
-    if (error) throw error;
-    return data;
-}
-
-export async function signIn(email, password) {
-    const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password
-    });
-    if (error) throw error;
-    return data;
-}
-
-export async function signOut() {
-    const { error } = await supabase.auth.signOut();
-    if (error) throw error;
-    window.location.href = '/index.html';
-}
-
-export function getCurrentUser() {
-    return supabase.auth.getUser();
-}
-
-handleAuthStateChange();
+};
